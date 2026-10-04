@@ -308,12 +308,12 @@
           <input type="text" id="scriptFileNameInput" placeholder="Nombre del guion" style="display:none;">
           <button id="addScriptBtn" title="Añadir otro guion">+ Nuevo guion</button>
         </div>
-        <textarea id="scriptInput" placeholder="Narrador: (0:00) Compañero. Regresión infinita...&#10;(0:15) Naturalmente, el protagonista..."></textarea>
+        <textarea id="scriptInput" placeholder="Narrador: (0:00) Compañero. Regresión infinita...&#10;[fondo: cueva] Naturalmente, el protagonista..."></textarea>
         <div class="row">
           <button id="uploadScriptBtn">Subir archivo (.txt / .pdf)</button>
           <input type="file" id="scriptFileInput" accept=".txt,.md,.pdf,text/plain,application/pdf" style="display:none">
         </div>
-        <div class="hint">Empieza una línea con "Nombre: texto" para marcar quién habla. Si pegas texto con marcas de tiempo como <b>(0:15)</b> —por ejemplo de TurboScribe, Audacity o la transcripción con IA— se detectan solas y se usan como puntos de control exactos; el resto de las palabras entre marcas se calcula automáticamente.</div>
+        <div class="hint">Empieza una línea con "Nombre: texto" para marcar quién habla. Si pegas texto con marcas de tiempo como <b>(0:15)</b> —por ejemplo de TurboScribe, Audacity o la transcripción con IA— se detectan solas y se usan como puntos de control exactos; el resto de las palabras entre marcas se calcula automáticamente. Para cambiar de fondo en un punto de la historia escribe <b>[fondo: nombre]</b> antes de esa palabra (el nombre se ve en la lista de fondos y se cambia con "Nombre"); el fondo cambiará cuando se narre esa palabra aunque regeneres el audio.</div>
 
         <label style="margin-top:10px; display:block;">Onomatopeyas</label>
         <div class="char-list" id="sfxList"></div>
@@ -417,6 +417,7 @@
     audioEl: null, audioDuration: 0,
     words: [],          // [{text, speaker}]
     timestamps: [],     // [seconds|null], same length as words
+    bgCues: [],          // [{wordIndex, name}] etiquetas [fondo: nombre] del guion
     anchors: [],         // [{wordIndex, time}] control points detected/typed by the user
     blocks: [],         // [{start,end}] word index ranges
     blockLimit: 70,
@@ -675,7 +676,8 @@
       mediaEl.className = 'thumb-media';
       const timeSpan = document.createElement('span');
       timeSpan.className = 'cname';
-      timeSpan.textContent = b.time.toFixed(1) + 's';
+      const usedByCue = state.bgCues.some(c => slugify(c.name) === bgTag(b));
+      timeSpan.textContent = bgTag(b) + (usedByCue ? ' · por guion' : ' · ' + b.time.toFixed(1) + 's');
       row.appendChild(mediaEl);
       row.appendChild(timeSpan);
       const timeBtn = document.createElement('button');
@@ -691,6 +693,17 @@
         draw(currentPreviewTime());
       });
       row.appendChild(timeBtn);
+      const nameBtn = document.createElement('button');
+      nameBtn.textContent = 'Nombre';
+      nameBtn.title = 'Nombre que usarás en el guion: [fondo: nombre]';
+      nameBtn.addEventListener('click', () => {
+        const val = prompt('Nombre para usar en el guion como [fondo: nombre]:', bgTag(b));
+        if (val === null || !val.trim()) return;
+        b.tag = val.trim();
+        renderBgList();
+        draw(currentPreviewTime());
+      });
+      row.appendChild(nameBtn);
       const delBtn = document.createElement('button');
       delBtn.textContent = '✕';
       delBtn.addEventListener('click', () => removeBackground(b.id));
@@ -699,7 +712,20 @@
     });
   }
 
+  function bgTag(b){
+    return slugify(b.tag || (b.name || '').replace(/\.[^.]+$/, ''));
+  }
+
   function findCurrentBackground(t){
+    if (state.bgCues.length){
+      let cue = null;
+      for (const c of state.bgCues){
+        const ts = state.timestamps[c.wordIndex];
+        if (ts == null || ts > t) continue;
+        if (state.backgrounds.some(b => bgTag(b) === slugify(c.name))) cue = c;
+      }
+      if (cue) return state.backgrounds.find(b => bgTag(b) === slugify(cue.name));
+    }
     let current = null;
     for (const b of state.backgrounds){
       if (b.time <= t) current = b; else break;
@@ -962,9 +988,10 @@
   }
 
   function reapplySpeakers(){
-    const { words, anchors } = parseScriptWithSpeakers($('scriptInput').value);
+    const { words, anchors, bgCues } = parseScriptWithSpeakers($('scriptInput').value);
     state.words = words;
     state.anchors = anchors;
+    state.bgCues = bgCues;
     state.timestamps = anchors.length
       ? interpolateFromAnchors(words, anchors, state.audioDuration)
       : new Array(words.length).fill(null);
@@ -1728,9 +1755,11 @@
     const words = [];
     const anchors = [];
     let currentSpeaker = 'narrador';
+    const bgCues = [];
+    let pendingBgNames = [];
     let pendingAnchorTime = null;
     const tagRe = /^\s*([^:]{1,30}):\s*(.*)$/;
-    const anchorRe = /\(\s*((?:\d+:)?\d{1,2}:\d{2})\s*\)/g;
+    const anchorRe = /\(\s*((?:\d+:)?\d{1,2}:\d{2})\s*\)|\[\s*fondo\s*:\s*([^\]]+?)\s*\]/gi;
     const sfxRe = /\*([^*]+)\*/g;
 
     const pushWords = (str) => {
@@ -1741,6 +1770,10 @@
           if (pendingAnchorTime != null){
             anchors.push({ wordIndex: words.length, time: pendingAnchorTime });
             pendingAnchorTime = null;
+          }
+          if (pendingBgNames.length){
+            bgCues.push({ wordIndex: words.length, name: pendingBgNames[pendingBgNames.length - 1] });
+            pendingBgNames = [];
           }
           words.push({ text: w, speaker: currentSpeaker, sfx });
         });
@@ -1768,12 +1801,13 @@
       anchorRe.lastIndex = 0;
       while ((match = anchorRe.exec(content)) !== null){
         pushWords(content.slice(lastIndex, match.index));
-        pendingAnchorTime = parseTimeToken(match[1]);
+        if (match[1]) pendingAnchorTime = parseTimeToken(match[1]);
+        else pendingBgNames.push(match[2]);
         lastIndex = anchorRe.lastIndex;
       }
       pushWords(content.slice(lastIndex));
     });
-    return { words, anchors };
+    return { words, anchors, bgCues };
   }
 
   function wordWeight(text){
@@ -2062,17 +2096,20 @@
   });
 
   $('applyScriptBtn').addEventListener('click', () => {
-    const { words, anchors } = parseScriptWithSpeakers($('scriptInput').value);
+    const { words, anchors, bgCues } = parseScriptWithSpeakers($('scriptInput').value);
     if (!words.length){ alert('Escribe o pega el guion primero.'); return; }
     state.words = words;
     state.anchors = anchors;
+    state.bgCues = bgCues;
     state.timestamps = anchors.length
       ? interpolateFromAnchors(words, anchors, state.audioDuration)
       : new Array(words.length).fill(null);
     state.blocks = computeBlocks(words, state.blockLimit);
-    $('wordCountHint').textContent = anchors.length
+    const cueNote = bgCues.length ? ` · ${bgCues.length} cambio(s) de fondo [fondo: …]` : '';
+    $('wordCountHint').textContent = (anchors.length
       ? `${words.length} palabras · ${state.blocks.length} bloques · ${anchors.length} marcas de tiempo detectadas y aplicadas`
-      : `${words.length} palabras · ${state.blocks.length} bloques de subtítulo`;
+      : `${words.length} palabras · ${state.blocks.length} bloques de subtítulo`) + cueNote;
+    renderBgList();
     renderTimeline();
     updateExportAvailability();
     updateSyncAvailability();

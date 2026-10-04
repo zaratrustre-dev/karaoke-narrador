@@ -8,6 +8,7 @@ Abre `index.html` en Chrome/Edge (o sirve la carpeta con `python3 -m http.server
 ## Funciones
 - Modo **Simple** (fondos, personaje, audio narrado, guion) y **Completo** (+ personajes múltiples, narración con IA, búsqueda de voces).
 - Guion con `Nombre: texto`, marcas de tiempo `(m:ss)` y onomatopeyas `*boom*`.
+- Fondos anclados al guion con `[fondo: nombre]`: cambian cuando se narra esa palabra.
 - Fondos y avatares con imagen, GIF o vídeo corto.
 - Voces TTS (traes tu propia clave): Gemini, ElevenLabs, Azure, F5-TTS (Hugging Face Space) y voces del navegador.
 - Transcripción con Gemini con diferenciación de oradores.

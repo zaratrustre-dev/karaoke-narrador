@@ -40,6 +40,8 @@ Audio (subido o TTS) ─► tiempos reales o estimados (estimateSegment / interp
 ## Hosts externos
 `generativelanguage.googleapis.com`, `api.elevenlabs.io`, Azure Speech (región configurable), Hugging Face Spaces, `fonts.googleapis.com`, `cdnjs.cloudflare.com` (pdf.js).
 
+## Fondos anclados al guion (`[fondo: nombre]`)
+`parseScriptWithSpeakers` devuelve `bgCues` (`{wordIndex, name}`) y se guarda en `state.bgCues`. La etiqueta no es una palabra: no se narra ni se subtitula. `findCurrentBackground(t)` elige el último cue cuya palabra ya tiene tiempo (`state.timestamps[wordIndex] <= t`) y cuyo nombre coincide con un fondo (`bgTag`: nombre editable o nombre de archivo, normalizado con `slugify`). Sin cues o sin coincidencia, vale el comportamiento anterior por segundos. Así las escenas siguen la narración al regenerar el audio.
+
 ## Pendiente / ideas
-- Anclar fondos a palabras del guion (`[fondo: nombre]`) para que las escenas sigan la narración.
 - Integración futura con Cogniflash (proyecto aparte).
