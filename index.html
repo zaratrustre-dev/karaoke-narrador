@@ -1,0 +1,2656 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Narrador — editor de subtítulos karaoke</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230a0d10'/%3E%3Crect x='25' y='9' width='13' height='25' rx='6.5' fill='%234cd3e8'/%3E%3Cpath d='M18 27a13.5 13.5 0 0 0 27 0' stroke='%234cd3e8' stroke-width='4' fill='none' stroke-linecap='round'/%3E%3Cline x1='31.5' y1='40.5' x2='31.5' y2='49' stroke='%234cd3e8' stroke-width='4' stroke-linecap='round'/%3E%3Cline x1='23' y1='49' x2='40' y2='49' stroke='%234cd3e8' stroke-width='4' stroke-linecap='round'/%3E%3Ccircle cx='47' cy='45' r='4.5' fill='%23f0f3f5'/%3E%3Crect x='50.5' y='16' width='3' height='29' fill='%23f0f3f5'/%3E%3Cpath d='M50.5 16c6-2 10 2 9 8-1-4-4-5-9-3z' fill='%23f0f3f5'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0a0d10;
+    --panel: #12161b;
+    --panel-2: #171c22;
+    --line: #262c33;
+    --text: #e7ecef;
+    --text-dim: #8a94a0;
+    --accent: #4cd3e8;
+    --accent-dim: #1c4753;
+    --danger: #e8654c;
+    --radius: 10px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;}
+  ::selection{ background: var(--accent-dim); color: var(--text); }
+  :focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  body{
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+  }
+  .app{ display:flex; flex-direction:column; min-height:100vh; }
+
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 14px 22px;
+    border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, #0d1114, #0a0d10);
+  }
+  .brand{ display:flex; align-items:baseline; gap:10px; }
+  .brand .mark{
+    font-family:'Space Grotesk', sans-serif; font-weight:700; font-size:19px; letter-spacing:.2px;
+  }
+  .brand .mark span{ color: var(--accent); }
+  .brand .sub{ font-size:12px; color:var(--text-dim); }
+
+  button{
+    font-family:'Inter', sans-serif;
+    font-size: 13px; font-weight:600;
+    border-radius: 8px; border:1px solid var(--line);
+    background: var(--panel-2); color: var(--text);
+    padding: 9px 14px; cursor:pointer;
+  }
+  button:hover{ border-color:#3a424c; }
+  button:disabled{ opacity:.4; cursor:not-allowed; }
+  button.primary{ background: var(--accent); border-color: var(--accent); color:#04262c; }
+  button.primary:hover{ filter:brightness(1.06); }
+  button.ghost{ background:transparent; }
+  button.danger{ color: var(--danger); border-color:#4a2b26; }
+
+  .layout{ flex:1; display:grid; grid-template-columns: 340px 1fr; min-height:0; }
+
+  .sidebar{
+    border-right:1px solid var(--line);
+    padding: 18px; overflow-y:auto;
+    display:flex; flex-direction:column; gap:22px;
+  }
+  .field{ display:flex; flex-direction:column; gap:8px; }
+  .field label{ font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--text-dim); font-weight:600; }
+  .mode-toggle{ display:flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  .mode-toggle .mode-btn{ flex:1; border:none; border-radius:0; background:var(--panel); }
+  .mode-toggle .mode-btn.active{ background:var(--accent); color:#04262c; }
+  .field .hint{ font-size:11.5px; color:var(--text-dim); line-height:1.4; }
+
+  .upload{
+    border:1px dashed var(--line); border-radius: var(--radius);
+    padding:12px; display:flex; align-items:center; gap:10px;
+    background: var(--panel);
+  }
+  .upload input[type=file]{ display:none; }
+  .upload .name{ font-size:12px; color:var(--text-dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
+  .upload button{ padding:6px 10px; font-size:12px; }
+  .thumb{ width:34px; height:34px; border-radius:6px; object-fit:cover; background:#000; flex-shrink:0; border:1px solid var(--line); }
+
+  .char-list{ display:flex; flex-direction:column; gap:6px; }
+  .script-tabs{ display:flex; flex-wrap:wrap; gap:6px; }
+  .script-tabs .tab-btn{ padding:6px 10px; font-size:12px; }
+  .script-tabs .tab-btn.active{ background:var(--accent); border-color:var(--accent); color:#04262c; }
+  .sfx-chip{ display:flex; align-items:center; gap:6px; padding:5px 8px; border:1px solid var(--line); border-radius:8px; background:var(--panel); }
+  .sfx-chip button{ padding:3px 8px; font-size:11px; }
+  .sfx-chip .sfx-label{ flex:1; font-size:12px; font-style:italic; }
+  #sfxList{ flex-direction:row; flex-wrap:wrap; }
+  .char-chip{
+    display:flex; align-items:center; gap:6px; padding:7px 8px;
+    border:1px solid var(--line); border-radius:8px; background:var(--panel);
+    flex-wrap:wrap; row-gap:6px;
+  }
+  .char-chip .dot{ width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+  .char-chip .char-color-input{
+    width:18px; height:18px; padding:0; border:1px solid var(--line); border-radius:50%;
+    flex-shrink:0; cursor:pointer; background:none; overflow:hidden;
+  }
+  .char-chip .char-color-input::-webkit-color-swatch-wrapper{ padding:0; }
+  .char-chip .char-color-input::-webkit-color-swatch{ border:none; border-radius:50%; }
+  .char-chip img{ width:26px; height:26px; border-radius:5px; object-fit:cover; background:#000; flex-shrink:0; }
+  .char-chip .thumb-media{ width:26px; height:26px; border-radius:5px; object-fit:cover; background:#000; flex-shrink:0; }
+  .char-chip .no-avatar{ width:26px; height:26px; border-radius:5px; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; flex-shrink:0; color:#04262c; }
+  .char-chip .cname{ flex:1; font-size:12.5px; }
+  .char-chip button{ padding:3px 8px; font-size:11px; }
+  .char-chip select.char-voice-select{ width:auto; max-width:88px; padding:3px 6px; font-size:11px; flex-shrink:0; }
+  .char-add{ display:flex; flex-direction:column; gap:8px; border-top:1px solid var(--line); padding-top:12px; }
+  .char-add input[type=color]{ width:38px; height:34px; padding:2px; background:var(--panel); border:1px solid var(--line); border-radius:6px; flex:0 0 auto; }
+
+  textarea{
+    width:100%; min-height:160px; resize:vertical;
+    background: var(--panel); color:var(--text);
+    border:1px solid var(--line); border-radius: var(--radius);
+    padding:10px; font-family:'Inter', sans-serif; font-size:13px; line-height:1.5;
+  }
+  input[type=number], input[type=text], input[type=password], select{
+    background: var(--panel); color:var(--text);
+    border:1px solid var(--line); border-radius:8px; padding:8px 10px; font-size:13px; width:100%;
+    font-family:'Inter', sans-serif;
+  }
+  input[type=range]{ width:100%; accent-color: var(--accent); }
+
+  .row{ display:flex; gap:8px; }
+  .row > *{ flex:1; }
+
+  .stage{ display:flex; flex-direction:column; min-height:0; padding:18px; gap:12px; }
+  .canvas-wrap{
+    flex:1; display:flex; align-items:center; justify-content:center;
+    background: #000; border-radius: var(--radius); border:1px solid var(--line);
+    overflow:hidden; min-height:0;
+  }
+  .canvas-wrap:fullscreen{ border-radius:0; border:none; }
+  .canvas-wrap:-webkit-full-screen{ border-radius:0; border:none; }
+  canvas{ width:100%; height:100%; object-fit:contain; display:block; background:#000; }
+
+  .transport{ display:flex; align-items:center; gap:12px; }
+  .transport .time{ font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--text-dim); width:96px; text-align:center; }
+  .transport input[type=range]{ flex:1; }
+
+  .timeline-title{ display:flex; justify-content:space-between; align-items:center; }
+  .timeline-title h3{ font-family:'Space Grotesk',sans-serif; font-size:13px; margin:0; color:var(--text-dim); font-weight:600; }
+  .timeline{
+    display:flex; flex-wrap:wrap; gap:6px; max-height:150px; overflow-y:auto;
+    padding:10px; border:1px solid var(--line); border-radius: var(--radius); background:var(--panel);
+  }
+  .chip{
+    font-size:12px; padding:5px 8px; border-radius:6px; border:1px solid var(--line);
+    background: var(--panel-2); cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:2px;
+    line-height:1.2;
+  }
+  .chip .t{ font-family:'IBM Plex Mono', monospace; font-size:9.5px; color:var(--text-dim); }
+  .chip.synced{ border-color: var(--accent-dim); }
+  .chip.synced .t{ color: var(--accent); }
+  .chip.current{ background: var(--accent-dim); border-color: var(--accent); }
+  .empty-hint{ color:var(--text-dim); font-size:12.5px; padding:4px; }
+
+  .overlay{
+    position:fixed; inset:0; background:rgba(6,8,10,.88); backdrop-filter: blur(3px);
+    display:flex; align-items:center; justify-content:center; z-index:50;
+  }
+  .overlay.hidden{ display:none; }
+  .sync-card{
+    width:min(720px, 92vw); background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    padding:28px; text-align:center;
+  }
+  .sync-card .prompter{ font-family:'Space Grotesk', sans-serif; font-size:28px; line-height:1.5; min-height:120px; display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:8px; }
+  .sync-card .prompter .done{ color: var(--text-dim); }
+  .sync-card .prompter .now{ color: var(--accent); }
+  .sync-card .prompter .next{ color: var(--text); opacity:.55; }
+  .sync-card .progress{ font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--text-dim); margin-top:6px; }
+  .sync-card .actions{ display:flex; gap:10px; justify-content:center; margin-top:22px; }
+  .sync-card .tap-key{ font-size:11.5px; color:var(--text-dim); margin-top:14px; }
+  .tap-key kbd{ background:var(--panel-2); border:1px solid var(--line); padding:2px 7px; border-radius:5px; font-family:'IBM Plex Mono',monospace; }
+
+  .export-status{
+    position:fixed; bottom:20px; right:20px; background:var(--panel); border:1px solid var(--accent-dim);
+    border-radius:10px; padding:14px 18px; font-size:13px; z-index:40; box-shadow:0 8px 30px rgba(0,0,0,.4);
+    display:none; min-width:220px;
+  }
+  .export-status.show{ display:block; }
+  .export-status .bar{ height:4px; background:#1c2126; border-radius:3px; margin-top:8px; overflow:hidden; }
+  .export-status .bar > div{ height:100%; background:var(--accent); width:0%; }
+
+  ::-webkit-scrollbar{ width:8px; height:8px; }
+  ::-webkit-scrollbar-thumb{ background:#2a2f36; border-radius:4px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="topbar">
+    <div class="brand">
+      <div class="mark">Narra<span>dor</span></div>
+      <div class="sub">editor de subtítulos karaoke</div>
+    </div>
+    <button class="primary" id="exportBtn" disabled>Exportar video</button>
+  </div>
+
+  <div class="layout">
+    <aside class="sidebar">
+
+      <div class="field">
+        <label>Modo</label>
+        <div class="mode-toggle">
+          <button type="button" class="mode-btn active" id="modeSimpleBtn">Simple</button>
+          <button type="button" class="mode-btn" id="modeCompletoBtn">Completo</button>
+        </div>
+        <div class="hint">Simple: fondos, personajes, subir audio y guion. Completo: además, transcripción y narración con IA.</div>
+      </div>
+
+      <div class="field">
+        <label>Fondos</label>
+        <div id="bgList" class="char-list"></div>
+        <div class="char-add">
+          <div class="row">
+            <input type="number" id="bgTime" min="0" step="0.1" value="0" placeholder="segundo">
+            <button id="bgAddBtn">Subir imagen</button>
+            <input type="file" id="bgInput" accept="image/*,video/*" multiple style="display:none">
+          </div>
+        </div>
+        <div class="hint">Puedes seleccionar varias imágenes/videos a la vez: se añaden en orden, separados 3 segundos entre sí (ajustable después con "Editar tiempo"). Cada fondo dura hasta que empieza el siguiente. Admite imágenes, GIF animados o video corto (se reproduce en bucle y mudo).</div>
+      </div>
+
+      <div class="field">
+        <label>Personajes</label>
+        <input type="text" id="voiceSearchInput" data-mode="completo" style="display:none;" placeholder="Buscar voz (nombre, idioma…)">
+        <div id="charList" class="char-list"></div>
+        <div class="char-add">
+          <input type="text" id="charName" placeholder="Nombre del personaje">
+          <div class="row">
+            <input type="color" id="charColor" value="#4cd3e8">
+            <button id="charAvatarBtn">Avatar</button>
+            <input type="file" id="charAvatarInput" accept="image/*,video/*" style="display:none">
+          </div>
+          <select id="charVoice"></select>
+          <button id="addCharBtn" style="width:100%">Añadir personaje</button>
+        </div>
+        <div class="hint">El narrador ya está incluido. Añade uno por cada personaje que hable, con su propio avatar (imagen, GIF animado o video corto) y su voz para la narración final. El botón "🔊 escuchar" usa las voces del navegador — es gratis y sirve para probar el casting, pero no queda grabado en el video. El buscador de voces filtra las listas de Gemini, ElevenLabs, Azure y navegador (útil con Azure, que trae más de 100). Nombre y voz de cada personaje se recuerdan en este navegador para la próxima vez.</div>
+      </div>
+
+      <div class="field">
+        <label>Audio narrado</label>
+        <div class="upload">
+          <span class="name" id="audName">Ningún archivo</span>
+          <button id="audBtn">Subir</button>
+          <button id="audClearBtn" class="danger" disabled>Borrar</button>
+          <input type="file" id="audInput" accept="audio/*">
+        </div>
+        <div class="hint">Sube el audio ya grabado (mp3, wav, m4a…), o cambia a modo Completo para generar la narración con IA. La duración del video será la del audio.</div>
+      </div>
+
+      <div class="field" data-mode="completo" style="display:none;">
+        <label>Transcribir audio (Gemini)</label>
+        <div class="upload">
+          <span class="name" id="transcribeAudName">Ningún archivo</span>
+          <button id="transcribeAudBtn">Subir</button>
+          <input type="file" id="transcribeAudInput" accept="audio/*" style="display:none">
+        </div>
+        <button id="transcribeBtn" style="width:100%" disabled>Transcribir con IA</button>
+        <div class="hint" id="transcribeStatus">Sube un audio (una entrevista, un audiolibro con varias voces, etc.) y genera un guion listo para revisar: detecta cuántas personas hablan y las etiqueta como "Orador 1", "Orador 2"… con marcas de tiempo. Usa la misma API key de Gemini de abajo. El resultado se coloca en el guion — revísalo antes de aplicarlo.</div>
+      </div>
+
+      <div class="field" data-mode="completo" style="display:none;">
+        <label>Narración con IA</label>
+        <select id="ttsProvider">
+          <option value="gemini">Gemini TTS (de pago, API key)</option>
+          <option value="elevenlabs">ElevenLabs TTS (de pago, API key)</option>
+          <option value="azure">Azure TTS (de pago, API key)</option>
+          <option value="hf_f5tts">F5-TTS (Space de Hugging Face, gratis)</option>
+          <option value="browser">Voces del navegador (gratis, sin registro)</option>
+        </select>
+        <div id="geminiFields">
+          <input type="password" id="geminiKey" placeholder="Tu API key de Gemini">
+          <input type="text" id="geminiModel" value="gemini-2.5-flash-preview-tts" placeholder="Modelo">
+        </div>
+        <div id="elevenlabsFields" style="display:none;">
+          <input type="password" id="elevenlabsKey" placeholder="Tu API key de ElevenLabs">
+          <input type="text" id="elevenlabsModel" value="eleven_multilingual_v2" placeholder="Modelo">
+          <button id="elevenlabsLoadBtn" style="width:100%">Cargar voces de mi cuenta</button>
+        </div>
+        <div id="azureFields" style="display:none;">
+          <input type="password" id="azureKey" placeholder="Tu API key de Azure Speech">
+          <input type="text" id="azureRegion" placeholder="Región (ej. eastus, westeurope)">
+          <button id="azureLoadBtn" style="width:100%">Cargar voces</button>
+        </div>
+        <div id="hfF5Fields" class="hint" style="display:none; margin:0;">
+          <input type="text" id="hfSpaceId" value="jpgallegoar/Spanish-F5" placeholder="usuario/nombre-del-space" style="margin-bottom:8px;">
+          <input type="text" id="hfApiName" value="/infer" placeholder="Nombre del endpoint (ej. /infer)" style="margin-bottom:8px;">
+          <input type="password" id="hfToken" placeholder="Token de Hugging Face (opcional)" style="margin-bottom:8px;">
+          <div>Clonación de voz gratuita. Por defecto apunta a <b>jpgallegoar/Spanish-F5</b>, un fine-tune de F5-TTS entrenado en español (mucho mejor pronunciación que el modelo base en inglés). Es un servicio comunitario, no oficial — puede estar lento, con cola de espera, o caído. En <b>Personajes</b>, en vez de elegir una voz, sube un audio de referencia corto (5-15s) de la voz a clonar y escribe exactamente lo que se dice ahí. Si cambias de Space y falla, entra a su página, baja hasta el final y revisa el enlace "Use via API" para confirmar el nombre exacto del endpoint — cada Space puede llamarlo distinto.</div>
+        </div>
+        <div id="browserFields" class="hint" style="display:none; margin:0;">El botón de abajo solo <b>reproduce</b> el guion para que lo escuches — no graba nada. La grabación real ocurre al pulsar <b>"Exportar video"</b>: ahí el navegador pedirá compartir pantalla — elige <b>"Esta pestaña"</b> y marca <b>"Compartir audio de la pestaña"</b>, y no la silencies ni cambies de pestaña hasta que termine. Funciona mejor en Chrome/Edge.</div>
+        <button class="primary" id="generateTtsBtn" style="width:100%" disabled>Generar narración con IA</button>
+        <button id="audDownloadBtn" style="width:100%" disabled>Descargar solo el audio</button>
+        <div class="hint" id="ttsStatus">Aplica primero el guion y asigna una voz a cada personaje (arriba, en Personajes). Genera un audio por cada personaje y calcula la sincronización automáticamente — no hace falta marcar tiempos a mano.</div>
+      </div>
+
+      <div class="field">
+        <label>Guion (texto narrado)</label>
+        <div class="script-tabs" id="scriptTabs"></div>
+        <div class="row">
+          <input type="text" id="scriptFileNameInput" placeholder="Nombre del guion" style="display:none;">
+          <button id="addScriptBtn" title="Añadir otro guion">+ Nuevo guion</button>
+        </div>
+        <textarea id="scriptInput" placeholder="Narrador: (0:00) Compañero. Regresión infinita...&#10;(0:15) Naturalmente, el protagonista..."></textarea>
+        <div class="row">
+          <button id="uploadScriptBtn">Subir archivo (.txt / .pdf)</button>
+          <input type="file" id="scriptFileInput" accept=".txt,.md,.pdf,text/plain,application/pdf" style="display:none">
+        </div>
+        <div class="hint">Empieza una línea con "Nombre: texto" para marcar quién habla. Si pegas texto con marcas de tiempo como <b>(0:15)</b> —por ejemplo de TurboScribe, Audacity o la transcripción con IA— se detectan solas y se usan como puntos de control exactos; el resto de las palabras entre marcas se calcula automáticamente.</div>
+
+        <label style="margin-top:10px; display:block;">Onomatopeyas</label>
+        <div class="char-list" id="sfxList"></div>
+        <div class="row">
+          <input type="text" id="sfxNewInput" placeholder="Nueva onomatopeya (ej. CRASH)">
+          <button id="sfxAddBtn">Añadir</button>
+        </div>
+        <div class="hint">Rodea una palabra con asteriscos para marcarla como efecto de sonido, ej. <code>Un *boom* ensordecedor sacudió...</code> — esa palabra ya no se narra en voz, solo aparece resaltada en cursiva en los subtítulos. Súbele un sonido a la onomatopeya (botón "Añadir sonido") para que se escuche en el momento exacto al exportar. Toca "Insertar" para colocarla en el guion donde tengas el cursor.</div>
+
+        <div class="row">
+          <button id="applyScriptBtn">Aplicar guion</button>
+          <button class="ghost" id="clearSyncBtn">Borrar sincronización</button>
+        </div>
+        <div class="hint" id="wordCountHint">0 palabras</div>
+      </div>
+
+      <div class="field">        <label>Ancho de bloque de subtítulo</label>
+        <input type="range" id="blockLimit" min="20" max="160" value="70">
+        <div class="hint" id="blockLimitVal">70 caracteres — controla cuánto texto se agrupa antes de reiniciar el subtítulo</div>
+      </div>
+
+      <div class="field">
+        <button class="primary" id="autoSyncBtn" style="width:100%" disabled>Sincronizar automáticamente</button>
+        <div class="hint">Estima el tiempo de cada palabra repartiendo la duración del audio según la longitud de las palabras y las pausas de puntuación. Es aproximado — luego puedes corregir cualquier palabra haciendo clic en ella.</div>
+        <button id="startSyncBtn" style="width:100%" disabled>Sincronizar manualmente (palabra por palabra)</button>
+        <div class="hint">Más preciso: reproduce el audio y marca cada palabra en el momento exacto en que se pronuncia.</div>
+      </div>
+
+    </aside>
+
+    <main class="stage">
+      <div class="canvas-wrap" id="canvasWrap">
+        <canvas id="canvas" width="1280" height="720"></canvas>
+      </div>
+
+      <div class="transport">
+        <button id="skipPrevBtn" title="Bloque anterior" disabled>⏮</button>
+        <button id="playBtn" disabled>▶</button>
+        <button id="skipNextBtn" title="Bloque siguiente" disabled>⏭</button>
+        <span class="time" id="curTime">00:00.0</span>
+        <input type="range" id="scrubber" min="0" max="0" step="0.01" value="0" disabled>
+        <span class="time" id="totTime">00:00.0</span>
+        <button id="fullscreenBtn" title="Pantalla completa">⛶</button>
+      </div>
+
+      <div class="timeline-title">
+        <h3>Cronología de palabras</h3>
+        <div style="display:flex; align-items:center; gap:14px;">
+          <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-dim);">
+            fps exportación
+            <select id="exportFps" style="background:var(--panel); color:var(--text); border:1px solid var(--line); border-radius:6px; padding:3px 6px; font-size:12px;">
+              <option value="30">30</option>
+              <option value="24">24</option>
+              <option value="15">15</option>
+            </select>
+          </label>
+          <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-dim);">
+            <input type="checkbox" id="hearOnExport"> escuchar audio al exportar
+          </label>
+        </div>
+      </div>
+      <div class="hint" style="margin:-6px 0 0;">Bajar los fps reduce la carga en equipos lentos (menos cuadros que dibujar y codificar), pero no acorta el tiempo total: sigue durando lo mismo que el audio, porque se graba en tiempo real.</div>
+      <div class="timeline" id="timeline">
+        <div class="empty-hint">Aplica un guion para ver aquí cada palabra y su marca de tiempo.</div>
+      </div>
+
+      <div class="timeline-title">
+        <h3>Historial de exportaciones</h3>
+      </div>
+      <div class="hint" style="margin:-6px 0 0;">Solo dura mientras esta pestaña siga abierta — si recargas la página se pierde.</div>
+      <div class="timeline" id="exportHistoryList">
+        <div class="empty-hint">Todavía no exportaste ningún video en esta sesión.</div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div class="overlay hidden" id="syncOverlay">
+  <div class="sync-card">
+    <div class="prompter" id="prompter"></div>
+    <div class="progress" id="syncProgress">0 / 0 palabras</div>
+    <div class="tap-key">Presiona <kbd>espacio</kbd> o toca el botón exactamente cuando se diga la palabra resaltada. <kbd>←</kbd> para deshacer.</div>
+    <div class="actions">
+      <button id="tapBtn" class="primary">Marcar palabra (espacio)</button>
+      <button id="undoTapBtn" class="ghost">Deshacer</button>
+      <button id="finishSyncBtn" class="danger">Terminar</button>
+    </div>
+  </div>
+</div>
+
+<div class="export-status" id="exportStatus">
+  <div id="exportLabel">Exportando…</div>
+  <div class="bar"><div id="exportBar"></div></div>
+  <button id="cancelExportBtn" class="danger" style="width:100%; margin-top:10px;">Cancelar</button>
+</div>
+
+<script>
+(() => {
+  const state = {
+    backgrounds: [],    // [{id, img, time, name}]
+    audioEl: null, audioDuration: 0,
+    words: [],          // [{text, speaker}]
+    timestamps: [],     // [seconds|null], same length as words
+    anchors: [],         // [{wordIndex, time}] control points detected/typed by the user
+    blocks: [],         // [{start,end}] word index ranges
+    blockLimit: 70,
+    isSyncing: false, syncPointer: 0,
+    isExporting: false,
+    isExportCancelled: false,
+    cancelExportFn: null,
+    rafId: null,
+    characters: [ { id:'narrador', name:'Narrador', color:'#4cd3e8', geminiVoice:null, browserVoice:null, elevenlabsVoice:null, azureVoice:null, img:null } ],
+    scripts: [ { id:'s1', name:'Guion 1', text:'' } ],
+    activeScriptId: 's1',
+    sfxList: [
+      { word:'BOOM', file:null, url:null, buffer:null },
+      { word:'CRASH', file:null, url:null, buffer:null },
+      { word:'SPLASH', file:null, url:null, buffer:null },
+      { word:'BANG', file:null, url:null, buffer:null },
+      { word:'CLINK', file:null, url:null, buffer:null },
+      { word:'WHOOSH', file:null, url:null, buffer:null },
+      { word:'THUD', file:null, url:null, buffer:null },
+      { word:'RING', file:null, url:null, buffer:null },
+    ],
+    audioBlob: null,
+    audioFileName: null,
+    exportHistory: [], // [{id, name, url, blob, time}]
+    previewPlayedSfx: new Set(),
+    currentMode: 'simple',
+  };
+
+  const $ = (id) => document.getElementById(id);
+  const canvas = $('canvas'), ctx = canvas.getContext('2d');
+
+  const GEMINI_VOICES = [
+    'Zephyr','Puck','Charon','Kore','Fenrir','Leda','Orus','Aoede','Callirrhoe','Autonoe',
+    'Enceladus','Iapetus','Umbriel','Algieba','Despina','Erinome','Algenib','Rasalgethi','Laomedeia','Achernar',
+    'Alnilam','Schedar','Gacrux','Pulcherrima','Achird','Zubenelgenubi','Vindemiatrix','Sadachbia','Sadaltager','Sulafat'
+  ];
+
+  let ELEVENLABS_VOICES = []; // [{voice_id, name}]
+  let AZURE_VOICES = []; // [{value, label, locale}]
+  let BROWSER_VOICES = [];
+
+  function refreshBrowserVoices(){
+    if (!window.speechSynthesis) return;
+    BROWSER_VOICES = speechSynthesis.getVoices();
+    renderCharacterList();
+    if ($('ttsProvider').value === 'browser' && document.activeElement !== $('charVoice')){
+      populateProviderVoiceSelect($('charVoice'), $('charVoice').value);
+    }
+  }
+  if (window.speechSynthesis){
+    speechSynthesis.onvoiceschanged = refreshBrowserVoices;
+    refreshBrowserVoices();
+  }
+
+  function browserVoiceList(){
+    return BROWSER_VOICES.map(v => `${v.name} (${v.lang})`);
+  }
+
+  // lista plana con value=label (Gemini) o value/label distintos (ElevenLabs)
+  function populateVoiceSelect(select, list, selected){
+    if (!list.length){ select.innerHTML = '<option value="">(sin voces disponibles)</option>'; return; }
+    const norm = list.map(v => typeof v === 'string' ? { value: v, label: v } : v);
+    select.innerHTML = norm.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
+    const values = norm.map(o => o.value);
+    select.value = selected && values.includes(selected) ? selected : values[0];
+  }
+
+  function currentVoiceQuery(){
+    const el = $('voiceSearchInput');
+    return el ? el.value.trim().toLowerCase() : '';
+  }
+
+  // voces del navegador agrupadas por idioma — el español primero, luego alfabético
+  function populateBrowserVoiceSelect(select, selected){
+    const query = currentVoiceQuery();
+    const filtered = query
+      ? BROWSER_VOICES.filter(v => `${v.name} ${v.lang}`.toLowerCase().includes(query))
+      : BROWSER_VOICES;
+    if (!filtered.length){ select.innerHTML = `<option value="">(sin resultados para "${query}")</option>`; return; }
+    const groups = {};
+    filtered.forEach(v => { (groups[v.lang || 'Otro'] = groups[v.lang || 'Otro'] || []).push(v); });
+    const langs = Object.keys(groups).sort((a,b) => {
+      const aEs = a.toLowerCase().startsWith('es') ? 0 : 1;
+      const bEs = b.toLowerCase().startsWith('es') ? 0 : 1;
+      return aEs !== bEs ? aEs - bEs : a.localeCompare(b);
+    });
+    select.innerHTML = langs.map(lang => {
+      const opts = groups[lang].map(v => `<option value="${v.name} (${v.lang})">${v.name}</option>`).join('');
+      return `<optgroup label="${lang}">${opts}</optgroup>`;
+    }).join('');
+    const values = filtered.map(v => `${v.name} (${v.lang})`);
+    select.value = selected && values.includes(selected) ? selected : values[0];
+  }
+
+  // voces de Azure agrupadas por idioma/región — el español primero
+  function populateAzureVoiceSelect(select, selected){
+    const query = currentVoiceQuery();
+    const filtered = query
+      ? AZURE_VOICES.filter(v => `${v.label} ${v.locale}`.toLowerCase().includes(query))
+      : AZURE_VOICES;
+    if (!filtered.length){ select.innerHTML = `<option value="">(sin resultados para "${query}")</option>`; return; }
+    const groups = {};
+    filtered.forEach(v => { (groups[v.locale || 'Otro'] = groups[v.locale || 'Otro'] || []).push(v); });
+    const langs = Object.keys(groups).sort((a,b) => {
+      const aEs = a.toLowerCase().startsWith('es') ? 0 : 1;
+      const bEs = b.toLowerCase().startsWith('es') ? 0 : 1;
+      return aEs !== bEs ? aEs - bEs : a.localeCompare(b);
+    });
+    select.innerHTML = langs.map(lang => {
+      const opts = groups[lang].map(v => `<option value="${v.value}">${v.label}</option>`).join('');
+      return `<optgroup label="${lang}">${opts}</optgroup>`;
+    }).join('');
+    const values = filtered.map(v => v.value);
+    select.value = selected && values.includes(selected) ? selected : values[0];
+  }
+
+  // rellena un <select> con la lista adecuada al proveedor activo, filtrada por el buscador de voces
+  function populateProviderVoiceSelect(select, selected){
+    const provider = $('ttsProvider').value;
+    if (provider === 'browser'){ populateBrowserVoiceSelect(select, selected); return; }
+    if (provider === 'azure'){ populateAzureVoiceSelect(select, selected); return; }
+    const query = currentVoiceQuery();
+    if (provider === 'elevenlabs'){
+      let list = ELEVENLABS_VOICES.map(v => ({ value: v.voice_id, label: v.name }));
+      if (query) list = list.filter(v => v.label.toLowerCase().includes(query));
+      populateVoiceSelect(select, list, selected);
+      return;
+    }
+    let list = GEMINI_VOICES;
+    if (query) list = list.filter(v => v.toLowerCase().includes(query));
+    populateVoiceSelect(select, list, selected);
+  }
+
+  function voicePropForProvider(provider){
+    if (provider === 'browser') return 'browserVoice';
+    if (provider === 'elevenlabs') return 'elevenlabsVoice';
+    if (provider === 'azure') return 'azureVoice';
+    return 'geminiVoice';
+  }
+
+  function updateTtsButtonLabel(){
+    $('generateTtsBtn').textContent = $('ttsProvider').value === 'browser'
+      ? '▶ Escuchar narración completa (sin grabar)'
+      : 'Generar narración con IA';
+  }
+
+  $('ttsProvider').addEventListener('change', () => {
+    const provider = $('ttsProvider').value;
+    $('geminiFields').style.display = provider === 'gemini' ? '' : 'none';
+    $('elevenlabsFields').style.display = provider === 'elevenlabs' ? '' : 'none';
+    $('azureFields').style.display = provider === 'azure' ? '' : 'none';
+    $('hfF5Fields').style.display = provider === 'hf_f5tts' ? '' : 'none';
+    $('browserFields').style.display = provider === 'browser' ? '' : 'none';
+    $('charVoice').style.display = provider === 'hf_f5tts' ? 'none' : '';
+    if (provider !== 'hf_f5tts') populateProviderVoiceSelect($('charVoice'));
+    renderCharacterList();
+    updateTtsButtonLabel();
+    updateExportAvailability();
+  });
+  updateTtsButtonLabel();
+
+  $('voiceSearchInput').addEventListener('input', () => {
+    if ($('ttsProvider').value !== 'hf_f5tts') populateProviderVoiceSelect($('charVoice'));
+    renderCharacterList();
+  });
+
+  // ---------- modo simple / completo ----------
+  $('modeSimpleBtn').addEventListener('click', () => setMode('simple'));
+  $('modeCompletoBtn').addEventListener('click', () => setMode('completo'));
+  function setMode(mode){
+    state.currentMode = mode;
+    $('modeSimpleBtn').classList.toggle('active', mode === 'simple');
+    $('modeCompletoBtn').classList.toggle('active', mode === 'completo');
+    document.querySelectorAll('[data-mode]').forEach(el => {
+      el.style.display = el.dataset.mode === mode ? '' : 'none';
+    });
+    renderCharacterList();
+  }
+
+  // ---------- fullscreen ----------
+  $('fullscreenBtn').addEventListener('click', () => {
+    const wrap = $('canvasWrap');
+    if (!document.fullscreenElement){
+      (wrap.requestFullscreen || wrap.webkitRequestFullscreen).call(wrap);
+    } else {
+      (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    }
+  });
+  document.addEventListener('fullscreenchange', () => {
+    $('fullscreenBtn').textContent = document.fullscreenElement ? '⤢' : '⛶';
+  });
+
+  function fmtTime(s){
+    if (!isFinite(s)) s = 0;
+    const m = Math.floor(s/60), sec = (s%60).toFixed(1).padStart(4,'0');
+    return `${String(m).padStart(2,'0')}:${sec}`;
+  }
+
+  // ---------- uploads ----------
+  function wireUpload(btnId, inputId, nameId, thumbId, onLoaded){
+    $(btnId).addEventListener('click', () => $(inputId).click());
+    $(inputId).addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      $(nameId).textContent = file.name;
+      const url = URL.createObjectURL(file);
+      onLoaded(url, file);
+    });
+  }
+
+  // ---------- backgrounds ----------
+  $('bgAddBtn').addEventListener('click', () => $('bgInput').click());
+  $('bgInput').addEventListener('change', (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    let time = Math.max(0, parseFloat($('bgTime').value) || 0);
+    files.forEach((file) => {
+      const t = time;
+      loadMedia(file, (el) => {
+        state.backgrounds.push({ id: 'bg' + Date.now() + Math.random().toString(36).slice(2,6), img: el, time: t, name: file.name });
+        state.backgrounds.sort((a,b) => a.time - b.time);
+        renderBgList();
+        draw(currentPreviewTime());
+      });
+      time += 3; // separa cada fondo adicional 3s para que no se pisen; ajustable luego con "Editar tiempo"
+    });
+    $('bgInput').value = '';
+  });
+
+  function removeBackground(id){
+    const bg = state.backgrounds.find(b => b.id === id);
+    if (bg) detachMedia(bg.img);
+    state.backgrounds = state.backgrounds.filter(b => b.id !== id);
+    renderBgList();
+    draw(currentPreviewTime());
+  }
+
+  function renderBgList(){
+    const el = $('bgList');
+    el.innerHTML = '';
+    if (!state.backgrounds.length){
+      el.innerHTML = '<div class="empty-hint">Aún no hay fondos. Sube al menos uno.</div>';
+      return;
+    }
+    state.backgrounds.forEach(b => {
+      const row = document.createElement('div');
+      row.className = 'char-chip';
+      let mediaEl;
+      if (b.img.tagName === 'VIDEO'){
+        mediaEl = document.createElement('video');
+        mediaEl.src = b.img.src; mediaEl.muted = true; mediaEl.loop = true; mediaEl.autoplay = true; mediaEl.playsInline = true;
+      } else {
+        mediaEl = document.createElement('img');
+        mediaEl.src = b.img.src;
+      }
+      mediaEl.className = 'thumb-media';
+      const timeSpan = document.createElement('span');
+      timeSpan.className = 'cname';
+      timeSpan.textContent = b.time.toFixed(1) + 's';
+      row.appendChild(mediaEl);
+      row.appendChild(timeSpan);
+      const timeBtn = document.createElement('button');
+      timeBtn.textContent = 'Editar tiempo';
+      timeBtn.addEventListener('click', () => {
+        const val = prompt('Segundo en que aparece este fondo:', b.time);
+        if (val === null) return;
+        const t = parseFloat(val);
+        if (isNaN(t)) return;
+        b.time = Math.max(0, t);
+        state.backgrounds.sort((a,c) => a.time - c.time);
+        renderBgList();
+        draw(currentPreviewTime());
+      });
+      row.appendChild(timeBtn);
+      const delBtn = document.createElement('button');
+      delBtn.textContent = '✕';
+      delBtn.addEventListener('click', () => removeBackground(b.id));
+      row.appendChild(delBtn);
+      el.appendChild(row);
+    });
+  }
+
+  function findCurrentBackground(t){
+    let current = null;
+    for (const b of state.backgrounds){
+      if (b.time <= t) current = b; else break;
+    }
+    return current || state.backgrounds[0] || null;
+  }
+
+  renderBgList();
+
+  // ---------- characters ----------
+  let pendingAvatarFile = null;
+
+  $('charAvatarBtn').addEventListener('click', () => $('charAvatarInput').click());
+  $('charAvatarInput').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    pendingAvatarFile = file;
+    $('charAvatarBtn').textContent = 'Avatar ✓';
+  });
+
+  function slugify(name){
+    return name.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'-');
+  }
+
+  // Host oculto donde viven los <img>/<video> de avatares y fondos. Un GIF o
+  // video solo sigue avanzando de cuadro mientras el navegador lo está
+  // "mostrando" en algún lugar del documento — por eso lo insertamos aquí en
+  // vez de dejarlo suelto, y luego lo redibujamos en el canvas cada frame.
+  const gifHost = document.createElement('div');
+  gifHost.style.cssText = 'position:absolute; width:0; height:0; overflow:hidden; opacity:0; pointer-events:none;';
+  document.body.appendChild(gifHost);
+
+  // Crea el elemento <img> o <video> correcto según el tipo de archivo y
+  // llama a onReady(el) cuando esté listo para dibujarse. Los videos se
+  // reproducen mudos y en bucle de forma independiente (decorativos), no
+  // sincronizados con la narración.
+  function loadMedia(file, onReady){
+    const url = URL.createObjectURL(file);
+    if (file.type.startsWith('video/')){
+      const video = document.createElement('video');
+      video.muted = true; video.loop = true; video.playsInline = true; video.autoplay = true;
+      video.addEventListener('loadeddata', () => { video.play().catch(()=>{}); onReady(video); }, { once:true });
+      video.src = url;
+      gifHost.appendChild(video);
+    } else {
+      const img = new Image();
+      img.onload = () => onReady(img);
+      img.src = url;
+      gifHost.appendChild(img);
+    }
+  }
+
+  function mediaSize(el){
+    if (el.tagName === 'VIDEO') return { w: el.videoWidth || 1, h: el.videoHeight || 1 };
+    return { w: el.naturalWidth || el.width || 1, h: el.naturalHeight || el.height || 1 };
+  }
+
+  function detachMedia(el){
+    if (el && el.parentNode) el.parentNode.removeChild(el);
+  }
+
+  function loadCharImage(character, file){
+    detachMedia(character.img);
+    loadMedia(file, (el) => { character.img = el; draw(currentPreviewTime()); });
+  }
+
+  $('addCharBtn').addEventListener('click', () => {
+    const name = $('charName').value.trim();
+    if (!name){ alert('Escribe el nombre del personaje.'); return; }
+    const id = slugify(name);
+    if (state.characters.some(c => c.id === id)){ alert('Ya existe un personaje con ese nombre.'); return; }
+    const color = $('charColor').value;
+    const provider = $('ttsProvider').value;
+    const character = {
+      id, name, color,
+      geminiVoice: provider === 'gemini' ? $('charVoice').value : GEMINI_VOICES[0],
+      browserVoice: provider === 'browser' ? $('charVoice').value : (browserVoiceList()[0] || null),
+      elevenlabsVoice: provider === 'elevenlabs' ? $('charVoice').value : (ELEVENLABS_VOICES[0] ? ELEVENLABS_VOICES[0].voice_id : null),
+      azureVoice: provider === 'azure' ? $('charVoice').value : (AZURE_VOICES[0] ? AZURE_VOICES[0].value : null),
+      img: null
+    };
+    if (pendingAvatarFile) loadCharImage(character, pendingAvatarFile);
+    state.characters.push(character);
+    pendingAvatarFile = null;
+    $('charName').value = '';
+    $('charAvatarInput').value = '';
+    $('charAvatarBtn').textContent = 'Avatar';
+    renderCharacterList();
+    if (state.words.length) reapplySpeakers();
+  });
+
+  const AUTO_COLOR_PALETTE = ['#4cd3e8','#e8a54c','#a5e84c','#e84c9e','#9e4ce8','#e8674c'];
+  function ensureCharacterExists(name){
+    const id = slugify(name);
+    if (state.characters.some(c => c.id === id)) return;
+    const color = AUTO_COLOR_PALETTE[state.characters.length % AUTO_COLOR_PALETTE.length];
+    state.characters.push({
+      id, name, color,
+      geminiVoice: GEMINI_VOICES[state.characters.length % GEMINI_VOICES.length],
+      browserVoice: browserVoiceList()[0] || null,
+      elevenlabsVoice: ELEVENLABS_VOICES[0] ? ELEVENLABS_VOICES[0].voice_id : null,
+      azureVoice: AZURE_VOICES[0] ? AZURE_VOICES[0].value : null,
+      img: null
+    });
+  }
+
+  function removeCharacter(id){
+    if (id === 'narrador'){ alert('El narrador no se puede eliminar.'); return; }
+    const character = state.characters.find(c => c.id === id);
+    if (character) detachMedia(character.img);
+    state.characters = state.characters.filter(c => c.id !== id);
+    renderCharacterList();
+    if (state.words.length) reapplySpeakers();
+  }
+
+  function changeCharAvatar(character){
+    const input = document.createElement('input');
+    input.type = 'file'; input.accept = 'image/*,video/*';
+    input.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      loadCharImage(character, file);
+      renderCharacterList();
+    });
+    input.click();
+  }
+
+  function renderCharacterList(){
+    const el = $('charList');
+    el.innerHTML = '';
+    state.characters.forEach(c => {
+      const row = document.createElement('div');
+      row.className = 'char-chip';
+      let avatarEl;
+      if (c.img && c.img.tagName === 'VIDEO'){
+        avatarEl = document.createElement('video');
+        avatarEl.src = c.img.src; avatarEl.muted = true; avatarEl.loop = true; avatarEl.autoplay = true; avatarEl.playsInline = true;
+        avatarEl.className = 'thumb-media';
+      } else if (c.img){
+        avatarEl = document.createElement('img');
+        avatarEl.src = c.img.src;
+        avatarEl.className = 'thumb-media';
+      } else {
+        avatarEl = document.createElement('div');
+        avatarEl.className = 'no-avatar';
+        avatarEl.style.background = c.color;
+        avatarEl.textContent = c.name.slice(0,2).toUpperCase();
+      }
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'cname';
+      nameSpan.textContent = c.name;
+      row.appendChild(avatarEl);
+      row.appendChild(nameSpan);
+      const colorInput = document.createElement('input');
+      colorInput.type = 'color';
+      colorInput.value = c.color;
+      colorInput.title = 'Cambiar color de ' + c.name;
+      colorInput.className = 'char-color-input';
+      colorInput.addEventListener('input', (e) => {
+        c.color = e.target.value;
+        if (!c.img) renderCharacterList(); // refresh initials box background
+        renderTimeline();
+        draw(currentPreviewTime());
+      });
+      row.insertBefore(colorInput, row.firstChild);
+      const provider = $('ttsProvider').value;
+
+      if (state.currentMode === 'completo'){
+        if (provider === 'hf_f5tts'){
+          const refBtn = document.createElement('button');
+          refBtn.textContent = c.f5RefFile ? 'Ref. audio ✓' : 'Ref. audio';
+          refBtn.title = 'Audio de referencia (5-15s) para clonar la voz de ' + c.name;
+          refBtn.addEventListener('click', () => {
+            const input = document.createElement('input');
+            input.type = 'file'; input.accept = 'audio/*';
+            input.addEventListener('change', (e) => {
+              const file = e.target.files[0];
+              if (!file) return;
+              c.f5RefFile = file;
+              renderCharacterList();
+            });
+            input.click();
+          });
+          row.appendChild(refBtn);
+
+          const refTextInput = document.createElement('input');
+          refTextInput.type = 'text';
+          refTextInput.placeholder = 'Texto exacto del audio de referencia';
+          refTextInput.value = c.f5RefText || '';
+          refTextInput.style.cssText = 'width:160px; padding:3px 6px; font-size:11px;';
+          refTextInput.addEventListener('change', (e) => { c.f5RefText = e.target.value; });
+          row.appendChild(refTextInput);
+        } else {
+          const propName = voicePropForProvider(provider);
+          const providerLabel = provider === 'browser' ? 'navegador' : provider === 'elevenlabs' ? 'ElevenLabs' : provider === 'azure' ? 'Azure' : 'Gemini TTS';
+          const voiceSelect = document.createElement('select');
+          voiceSelect.className = 'char-voice-select';
+          voiceSelect.title = 'Voz de ' + providerLabel + ' (narración final) para ' + c.name;
+          populateProviderVoiceSelect(voiceSelect, c[propName]);
+          voiceSelect.addEventListener('change', (e) => { c[propName] = e.target.value; });
+          row.appendChild(voiceSelect);
+        }
+
+        const previewBtn = document.createElement('button');
+        previewBtn.textContent = '🔊';
+        previewBtn.title = 'Escuchar con la voz de navegador (prueba, no se graba)';
+        previewBtn.addEventListener('click', () => previewCharacterVoice(c));
+        row.appendChild(previewBtn);
+      }
+
+      const editBtn = document.createElement('button');
+      editBtn.textContent = 'Avatar';
+      editBtn.addEventListener('click', () => changeCharAvatar(c));
+      row.appendChild(editBtn);
+      if (c.id !== 'narrador'){
+        const delBtn = document.createElement('button');
+        delBtn.textContent = '✕';
+        delBtn.addEventListener('click', () => removeCharacter(c.id));
+        row.appendChild(delBtn);
+      }
+      el.appendChild(row);
+    });
+    persistCharacters();
+  }
+
+  function persistCharacters(){
+    try {
+      const data = state.characters.map(c => ({
+        id: c.id, name: c.name, color: c.color,
+        geminiVoice: c.geminiVoice, browserVoice: c.browserVoice,
+        elevenlabsVoice: c.elevenlabsVoice, azureVoice: c.azureVoice
+      }));
+      localStorage.setItem('karaoke_characters_v1', JSON.stringify(data));
+    } catch (e){ /* almacenamiento no disponible — se ignora */ }
+  }
+
+  function loadPersistedCharacters(){
+    try {
+      const raw = localStorage.getItem('karaoke_characters_v1');
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      if (Array.isArray(saved) && saved.length){
+        state.characters = saved.map(c => ({ ...c, img: null }));
+        if (!state.characters.some(c => c.id === 'narrador')){
+          state.characters.unshift({ id:'narrador', name:'Narrador', color:'#4cd3e8', geminiVoice:null, browserVoice:null, elevenlabsVoice:null, azureVoice:null, img:null });
+        }
+      }
+    } catch (e){ /* almacenamiento no disponible — se ignora */ }
+  }
+
+  function previewCharacterVoice(character){
+    if (!window.speechSynthesis){ alert('Este navegador no soporta síntesis de voz.'); return; }
+    speechSynthesis.cancel();
+    const ownLines = state.words.filter(w => w.speaker === character.id).map(w => w.text).join(' ');
+    const sampleText = (ownLines || `Hola, esta es la voz de ${character.name}.`).split(/\s+/).slice(0, 40).join(' ');
+    const utter = new SpeechSynthesisUtterance(sampleText);
+    const voice = BROWSER_VOICES.find(v => `${v.name} (${v.lang})` === character.browserVoice);
+    if (voice) utter.voice = voice;
+    speechSynthesis.speak(utter);
+  }
+
+  function reapplySpeakers(){
+    const { words, anchors } = parseScriptWithSpeakers($('scriptInput').value);
+    state.words = words;
+    state.anchors = anchors;
+    state.timestamps = anchors.length
+      ? interpolateFromAnchors(words, anchors, state.audioDuration)
+      : new Array(words.length).fill(null);
+    state.blocks = computeBlocks(words, state.blockLimit);
+    renderTimeline();
+    updateExportAvailability();
+    updateSyncAvailability();
+  }
+
+  loadPersistedCharacters();
+  renderCharacterList();
+
+  function loadAudioFromUrl(url, onReady){
+    if (state.audioEl) { state.audioEl.pause(); }
+    const audio = new Audio();
+    audio.src = url; audio.preload = 'auto';
+    audio.addEventListener('loadedmetadata', () => {
+      state.audioDuration = audio.duration;
+      $('scrubber').max = audio.duration;
+      $('scrubber').disabled = false;
+      $('totTime').textContent = fmtTime(audio.duration);
+      $('playBtn').disabled = false;
+      $('skipPrevBtn').disabled = false;
+      $('skipNextBtn').disabled = false;
+      $('audClearBtn').disabled = false;
+      $('audDownloadBtn').disabled = !state.audioBlob;
+      if (state.anchors.length){
+        state.timestamps = interpolateFromAnchors(state.words, state.anchors, state.audioDuration);
+        renderTimeline();
+      }
+      updateExportAvailability();
+      updateSyncAvailability();
+      if (onReady) onReady();
+    });
+    audio.addEventListener('ended', () => { $('playBtn').textContent = '▶'; cancelAnimationFrame(state.rafId); });
+    state.audioEl = audio;
+  }
+
+  function clearNarrationAudio(){
+    if (!state.audioEl) return;
+    state.audioEl.pause();
+    cancelAnimationFrame(state.rafId);
+    state.audioEl = null;
+    state.audioDuration = 0;
+    state.audioBlob = null;
+    state.audioFileName = null;
+    $('audName').textContent = 'Ningún archivo';
+    $('audInput').value = '';
+    $('audClearBtn').disabled = true;
+    $('audDownloadBtn').disabled = true;
+    $('playBtn').textContent = '▶';
+    $('playBtn').disabled = true;
+    $('skipPrevBtn').disabled = true;
+    $('skipNextBtn').disabled = true;
+    $('scrubber').value = 0;
+    $('scrubber').max = 0;
+    $('scrubber').disabled = true;
+    $('curTime').textContent = fmtTime(0);
+    $('totTime').textContent = fmtTime(0);
+    draw(0);
+    updateExportAvailability();
+    updateSyncAvailability();
+  }
+  $('audClearBtn').addEventListener('click', clearNarrationAudio);
+
+  $('audDownloadBtn').addEventListener('click', () => {
+    if (!state.audioBlob) return;
+    const url = URL.createObjectURL(state.audioBlob);
+    const a = document.createElement('a');
+    a.href = url; a.download = state.audioFileName || 'audio-narrado.wav';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  });
+
+  wireUpload('audBtn','audInput','audName','', (url, file) => {
+    state.audioBlob = file;
+    state.audioFileName = file.name;
+    loadAudioFromUrl(url);
+  });
+
+  // ---------- TTS: Gemini / ElevenLabs / navegador ----------
+  populateProviderVoiceSelect($('charVoice'), 'Puck');
+
+  $('elevenlabsLoadBtn').addEventListener('click', async () => {
+    const key = $('elevenlabsKey').value.trim();
+    if (!key){ alert('Pega tu API key de ElevenLabs primero.'); return; }
+    $('elevenlabsLoadBtn').disabled = true;
+    $('elevenlabsLoadBtn').textContent = 'Cargando…';
+    try {
+      const res = await fetch('https://api.elevenlabs.io/v1/voices', { headers: { 'xi-api-key': key } });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      ELEVENLABS_VOICES = (data.voices || []).map(v => ({ voice_id: v.voice_id, name: v.name }));
+      if ($('ttsProvider').value === 'elevenlabs') populateProviderVoiceSelect($('charVoice'));
+      renderCharacterList();
+      $('elevenlabsLoadBtn').textContent = `Voces cargadas (${ELEVENLABS_VOICES.length})`;
+    } catch (err){
+      alert('Error cargando voces de ElevenLabs: ' + err.message);
+      $('elevenlabsLoadBtn').textContent = 'Cargar voces de mi cuenta';
+    }
+    $('elevenlabsLoadBtn').disabled = false;
+  });
+
+  // ---------- transcripción con diarización (Gemini) ----------
+  let transcribeFile = null;
+  $('transcribeAudBtn').addEventListener('click', () => $('transcribeAudInput').click());
+  $('transcribeAudInput').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    transcribeFile = file;
+    $('transcribeAudName').textContent = file.name;
+    $('transcribeBtn').disabled = false;
+  });
+
+  function fileToBase64(file){
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function extractSpeakerLabels(text){
+    const labels = new Set();
+    text.split(/\n+/).forEach(line => {
+      const m = line.match(/^\s*([^:\n]{1,30}):/);
+      if (m) labels.add(m[1].trim());
+    });
+    return [...labels];
+  }
+
+  $('transcribeBtn').addEventListener('click', async () => {
+    const apiKey = $('geminiKey').value.trim();
+    const model = $('geminiTranscribeModel') ? $('geminiTranscribeModel').value.trim() : '';
+    if (!apiKey){ alert('Pega tu API key de Gemini en el campo de arriba (Narración con IA) primero.'); return; }
+    if (!transcribeFile){ alert('Sube un audio primero.'); return; }
+    if ($('scriptInput').value.trim() && !confirm('Esto va a reemplazar el texto actual del guion. ¿Continuar?')) return;
+
+    $('transcribeBtn').disabled = true;
+    $('transcribeStatus').textContent = 'Transcribiendo… puede tardar según la duración del audio.';
+    try {
+      const base64 = await fileToBase64(transcribeFile);
+      const modelName = model || 'gemini-2.5-flash';
+      const prompt = 'Transcribe este audio en español tal como se dice. Identifica cuántas personas distintas hablan. ' +
+        'Si es una sola voz narrando, usa "Narrador". Si hay varias, etiqueta cada una como "Orador 1", "Orador 2", etc., ' +
+        'en el orden en que aparecen por primera vez. Para cada intervención nueva (cambio de quien habla, o cada ' +
+        'varias frases si es la misma persona), escribe una línea con el formato exacto: ' +
+        '"Nombre: (mm:ss) texto dicho" — la marca de tiempo (mm:ss) debe ser el momento real en el audio donde ' +
+        'empieza esa parte. No agregues explicaciones, resúmenes ni nada fuera de ese formato — solo las líneas de transcripción.';
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+        body: JSON.stringify({
+          contents: [{ parts: [
+            { inlineData: { mimeType: transcribeFile.type || 'audio/mpeg', data: base64 } },
+            { text: prompt }
+          ] }]
+        })
+      });
+      if (!res.ok){
+        const errText = await res.text().catch(() => '');
+        throw new Error(`${res.status} ${errText.slice(0,200)}`);
+      }
+      const data = await res.json();
+      const part = data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0];
+      const text = part && part.text ? part.text.trim() : '';
+      if (!text) throw new Error('Respuesta vacía — intenta con un audio más corto o revisa el modelo.');
+
+      $('scriptInput').value = text;
+      extractSpeakerLabels(text).forEach(label => ensureCharacterExists(label));
+      renderCharacterList();
+      $('transcribeStatus').textContent = 'Transcripción lista en el guion — revísala y pulsa "Aplicar guion" cuando estés conforme.';
+    } catch (err){
+      alert('Error transcribiendo: ' + err.message);
+      $('transcribeStatus').textContent = 'Ocurrió un error. Revisa la API key, el archivo y vuelve a intentar.';
+    }
+    $('transcribeBtn').disabled = false;
+  });
+
+  function base64ToInt16(base64){
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return new Int16Array(bytes.buffer);
+  }
+
+  function encodeWav(int16, sampleRate){
+    const numChannels = 1, bitsPerSample = 16;
+    const byteRate = sampleRate * numChannels * bitsPerSample / 8;
+    const blockAlign = numChannels * bitsPerSample / 8;
+    const dataSize = int16.length * 2;
+    const buffer = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(buffer);
+    const writeStr = (offset, str) => { for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i)); };
+    writeStr(0,'RIFF'); view.setUint32(4, 36 + dataSize, true); writeStr(8,'WAVE');
+    writeStr(12,'fmt '); view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true); view.setUint32(28, byteRate, true); view.setUint16(32, blockAlign, true); view.setUint16(34, bitsPerSample, true);
+    writeStr(36,'data'); view.setUint32(40, dataSize, true);
+    let offset = 44;
+    for (let i = 0; i < int16.length; i++, offset += 2) view.setInt16(offset, int16[i], true);
+    return new Blob([buffer], { type: 'audio/wav' });
+  }
+
+  async function callGeminiTts(apiKey, model, text, voiceName){
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text }] }],
+        generationConfig: {
+          responseModalities: ['AUDIO'],
+          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } }
+        }
+      })
+    });
+    if (!res.ok){
+      const errText = await res.text().catch(() => '');
+      throw new Error(`${res.status} ${errText.slice(0,200)}`);
+    }
+    const data = await res.json();
+    const part = data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0];
+    if (!part || !part.inlineData || !part.inlineData.data) throw new Error('Respuesta sin audio (revisa el modelo o la voz).');
+    const mimeType = part.inlineData.mimeType || '';
+    const rateMatch = mimeType.match(/rate=(\d+)/);
+    const sampleRate = rateMatch ? parseInt(rateMatch[1], 10) : 24000;
+    return { pcm: base64ToInt16(part.inlineData.data), sampleRate };
+  }
+
+  function buildNarrationItems(words){
+    const items = [];
+    let i = 0;
+    while (i < words.length){
+      if (words[i].sfx){
+        items.push({ type: 'sfx', speaker: words[i].speaker, wordStart: i, wordEnd: i });
+        i++;
+        continue;
+      }
+      let j = i;
+      while (j < words.length && !words[j].sfx && words[j].speaker === words[i].speaker) j++;
+      const text = words.slice(i, j).map(w => w.text).join(' ');
+      items.push({ type: 'speech', speaker: words[i].speaker, wordStart: i, wordEnd: j - 1, text });
+      i = j;
+    }
+    return items;
+  }
+
+  function applyGeneratedTimestamps(items, itemTimes, statusEl){
+    const out = new Array(state.words.length).fill(null);
+    itemTimes.forEach(({ item, startTime, endTime, wordTimes }) => {
+      if (item.type === 'sfx'){
+        out[item.wordStart] = startTime;
+      } else if (wordTimes && wordTimes.length === (item.wordEnd - item.wordStart + 1)){
+        wordTimes.forEach((t, k) => { out[item.wordStart + k] = t; });
+      } else {
+        estimateSegment(state.words, item.wordStart, item.wordEnd, startTime, endTime, out);
+      }
+    });
+    state.timestamps = out;
+    state.anchors = [];
+    state.blocks = computeBlocks(state.words, state.blockLimit);
+    renderTimeline();
+    updateExportAvailability();
+    const speechCount = items.filter(it => it.type === 'speech').length;
+    statusEl.textContent = `Narración generada y sincronizada automáticamente (${speechCount} línea${speechCount === 1 ? '' : 's'}).`;
+    $('generateTtsBtn').disabled = false;
+  }
+
+  function sfxSilenceDuration(word){
+    const entry = findSfxEntry(word);
+    return (entry && entry.buffer) ? entry.buffer.duration : 0.6;
+  }
+
+  async function generateWithGemini(items, statusEl){
+    const apiKey = $('geminiKey').value.trim();
+    const model = $('geminiModel').value.trim() || 'gemini-2.5-flash-preview-tts';
+    if (!apiKey){ alert('Pega tu API key de Gemini primero.'); $('generateTtsBtn').disabled = false; return; }
+
+    const chunks = [];
+    try {
+      const speechItems = items.filter(it => it.type === 'speech');
+      let doneCount = 0;
+      for (const item of items){
+        if (item.type === 'sfx'){
+          const rate = chunks.length ? chunks[chunks.length - 1].sampleRate : 24000;
+          const dur = sfxSilenceDuration(state.words[item.wordStart].text);
+          chunks.push({ pcm: new Int16Array(Math.round(dur * rate)), sampleRate: rate, item });
+          continue;
+        }
+        const character = state.characters.find(c => c.id === item.speaker);
+        const voiceName = (character && character.geminiVoice) || GEMINI_VOICES[0];
+        doneCount++;
+        statusEl.textContent = `Generando línea ${doneCount}/${speechItems.length} — ${character ? character.name : item.speaker}…`;
+        const { pcm, sampleRate } = await callGeminiTts(apiKey, model, item.text, voiceName);
+        chunks.push({ pcm, sampleRate, item });
+      }
+    } catch (err){
+      alert('Error generando narración con Gemini: ' + err.message);
+      statusEl.textContent = 'Ocurrió un error. Revisa la API key, el modelo y vuelve a intentar.';
+      $('generateTtsBtn').disabled = false;
+      return;
+    }
+
+    const sampleRate = (chunks.find(c => c.item.type === 'speech') || chunks[0]).sampleRate;
+    chunks.forEach(c => {
+      if (c.item.type === 'sfx' && c.sampleRate !== sampleRate){
+        const dur = c.pcm.length / c.sampleRate;
+        c.pcm = new Int16Array(Math.round(dur * sampleRate));
+        c.sampleRate = sampleRate;
+      }
+    });
+    const totalSamples = chunks.reduce((s,c) => s + c.pcm.length, 0);
+    const combined = new Int16Array(totalSamples);
+    let offset = 0;
+    const itemTimes = [];
+    chunks.forEach(c => {
+      combined.set(c.pcm, offset);
+      const startTime = offset / sampleRate;
+      offset += c.pcm.length;
+      itemTimes.push({ item: c.item, startTime, endTime: offset / sampleRate });
+    });
+
+    const blob = encodeWav(combined, sampleRate);
+    state.audioBlob = blob;
+    state.audioFileName = 'narracion-gemini.wav';
+    statusEl.textContent = 'Narración generada. Cargando audio…';
+    const url = URL.createObjectURL(blob);
+    loadAudioFromUrl(url, () => applyGeneratedTimestamps(items, itemTimes, statusEl));
+  }
+
+  async function callElevenLabsTts(apiKey, voiceId, model, text){
+    const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'xi-api-key': apiKey, 'Accept': 'audio/mpeg' },
+      body: JSON.stringify({ text, model_id: model || 'eleven_multilingual_v2' })
+    });
+    if (!res.ok){
+      const errText = await res.text().catch(() => '');
+      throw new Error(`${res.status} ${errText.slice(0,200)}`);
+    }
+    const arrayBuf = await res.arrayBuffer();
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const audioBuffer = await audioCtx.decodeAudioData(arrayBuf);
+    const channelData = audioBuffer.getChannelData(0);
+    const pcm = new Int16Array(channelData.length);
+    for (let i = 0; i < channelData.length; i++){
+      const s = Math.max(-1, Math.min(1, channelData[i]));
+      pcm[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+    }
+    audioCtx.close();
+    return { pcm, sampleRate: audioBuffer.sampleRate };
+  }
+
+  async function generateWithElevenLabs(items, statusEl){
+    const apiKey = $('elevenlabsKey').value.trim();
+    const model = $('elevenlabsModel').value.trim() || 'eleven_multilingual_v2';
+    if (!apiKey){ alert('Pega tu API key de ElevenLabs primero.'); $('generateTtsBtn').disabled = false; return; }
+    if (!ELEVENLABS_VOICES.length){ alert('Carga las voces de tu cuenta de ElevenLabs primero (botón "Cargar voces de mi cuenta").'); $('generateTtsBtn').disabled = false; return; }
+
+    const chunks = [];
+    try {
+      const speechItems = items.filter(it => it.type === 'speech');
+      let doneCount = 0;
+      for (const item of items){
+        if (item.type === 'sfx'){
+          const rate = chunks.length ? chunks[chunks.length - 1].sampleRate : 24000;
+          const dur = sfxSilenceDuration(state.words[item.wordStart].text);
+          chunks.push({ pcm: new Int16Array(Math.round(dur * rate)), sampleRate: rate, item });
+          continue;
+        }
+        const character = state.characters.find(c => c.id === item.speaker);
+        const voiceId = (character && character.elevenlabsVoice) || ELEVENLABS_VOICES[0].voice_id;
+        doneCount++;
+        statusEl.textContent = `Generando línea ${doneCount}/${speechItems.length} — ${character ? character.name : item.speaker}…`;
+        const { pcm, sampleRate } = await callElevenLabsTts(apiKey, voiceId, model, item.text);
+        chunks.push({ pcm, sampleRate, item });
+      }
+    } catch (err){
+      alert('Error generando narración con ElevenLabs: ' + err.message);
+      statusEl.textContent = 'Ocurrió un error. Revisa la API key, el modelo y vuelve a intentar.';
+      $('generateTtsBtn').disabled = false;
+      return;
+    }
+
+    const sampleRate = (chunks.find(c => c.item.type === 'speech') || chunks[0]).sampleRate;
+    chunks.forEach(c => {
+      if (c.item.type === 'sfx' && c.sampleRate !== sampleRate){
+        const dur = c.pcm.length / c.sampleRate;
+        c.pcm = new Int16Array(Math.round(dur * sampleRate));
+        c.sampleRate = sampleRate;
+      }
+    });
+    const totalSamples = chunks.reduce((s,c) => s + c.pcm.length, 0);
+    const combined = new Int16Array(totalSamples);
+    let offset = 0;
+    const itemTimes = [];
+    chunks.forEach(c => {
+      combined.set(c.pcm, offset);
+      const startTime = offset / sampleRate;
+      offset += c.pcm.length;
+      itemTimes.push({ item: c.item, startTime, endTime: offset / sampleRate });
+    });
+
+    const blob = encodeWav(combined, sampleRate);
+    state.audioBlob = blob;
+    state.audioFileName = 'narracion-elevenlabs.wav';
+    statusEl.textContent = 'Narración generada. Cargando audio…';
+    const url = URL.createObjectURL(blob);
+    loadAudioFromUrl(url, () => applyGeneratedTimestamps(items, itemTimes, statusEl));
+  }
+
+  function escapeXml(str){
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');
+  }
+
+  async function callAzureTts(apiKey, region, voiceValue, text){
+    const voice = AZURE_VOICES.find(v => v.value === voiceValue);
+    const locale = (voice && voice.locale) || 'es-ES';
+    const ssml = `<speak version='1.0' xml:lang='${locale}'><voice name='${voiceValue}'>${escapeXml(text)}</voice></speak>`;
+    const res = await fetch(`https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/ssml+xml',
+        'Ocp-Apim-Subscription-Key': apiKey,
+        'X-Microsoft-OutputFormat': 'riff-24khz-16bit-mono-pcm'
+      },
+      body: ssml
+    });
+    if (!res.ok){
+      const errText = await res.text().catch(() => '');
+      throw new Error(`${res.status} ${errText.slice(0,200)}`);
+    }
+    const arrayBuf = await res.arrayBuffer();
+    return parseWavPcm16(arrayBuf);
+  }
+
+  function parseWavPcm16(buf){
+    const view = new DataView(buf);
+    let offset = 12, dataOffset = null, dataSize = 0, sampleRate = 24000;
+    while (offset < buf.byteLength - 8){
+      const id = String.fromCharCode(view.getUint8(offset), view.getUint8(offset+1), view.getUint8(offset+2), view.getUint8(offset+3));
+      const size = view.getUint32(offset + 4, true);
+      if (id === 'fmt ') sampleRate = view.getUint32(offset + 12, true);
+      else if (id === 'data'){ dataOffset = offset + 8; dataSize = size; }
+      offset += 8 + size + (size % 2);
+    }
+    const pcm = new Int16Array(buf.slice(dataOffset, dataOffset + dataSize));
+    return { pcm, sampleRate };
+  }
+
+  async function generateWithAzure(items, statusEl){
+    const apiKey = $('azureKey').value.trim();
+    const region = $('azureRegion').value.trim();
+    if (!apiKey || !region){ alert('Pega tu API key y región de Azure primero.'); $('generateTtsBtn').disabled = false; return; }
+    if (!AZURE_VOICES.length){ alert('Carga las voces primero (botón "Cargar voces").'); $('generateTtsBtn').disabled = false; return; }
+
+    const chunks = [];
+    try {
+      const speechItems = items.filter(it => it.type === 'speech');
+      let doneCount = 0;
+      for (const item of items){
+        if (item.type === 'sfx'){
+          const rate = chunks.length ? chunks[chunks.length - 1].sampleRate : 24000;
+          const dur = sfxSilenceDuration(state.words[item.wordStart].text);
+          chunks.push({ pcm: new Int16Array(Math.round(dur * rate)), sampleRate: rate, item });
+          continue;
+        }
+        const character = state.characters.find(c => c.id === item.speaker);
+        const voiceValue = (character && character.azureVoice) || AZURE_VOICES[0].value;
+        doneCount++;
+        statusEl.textContent = `Generando línea ${doneCount}/${speechItems.length} — ${character ? character.name : item.speaker}…`;
+        const { pcm, sampleRate } = await callAzureTts(apiKey, region, voiceValue, item.text);
+        chunks.push({ pcm, sampleRate, item });
+      }
+    } catch (err){
+      alert('Error generando narración con Azure: ' + err.message);
+      statusEl.textContent = 'Ocurrió un error. Revisa la API key, la región y vuelve a intentar.';
+      $('generateTtsBtn').disabled = false;
+      return;
+    }
+
+    const sampleRate = (chunks.find(c => c.item.type === 'speech') || chunks[0]).sampleRate;
+    chunks.forEach(c => {
+      if (c.item.type === 'sfx' && c.sampleRate !== sampleRate){
+        const dur = c.pcm.length / c.sampleRate;
+        c.pcm = new Int16Array(Math.round(dur * sampleRate));
+        c.sampleRate = sampleRate;
+      }
+    });
+    const totalSamples = chunks.reduce((s,c) => s + c.pcm.length, 0);
+    const combined = new Int16Array(totalSamples);
+    let offset = 0;
+    const itemTimes = [];
+    chunks.forEach(c => {
+      combined.set(c.pcm, offset);
+      const startTime = offset / sampleRate;
+      offset += c.pcm.length;
+      itemTimes.push({ item: c.item, startTime, endTime: offset / sampleRate });
+    });
+
+    const blob = encodeWav(combined, sampleRate);
+    state.audioBlob = blob;
+    state.audioFileName = 'narracion-azure.wav';
+    statusEl.textContent = 'Narración generada. Cargando audio…';
+    const url = URL.createObjectURL(blob);
+    loadAudioFromUrl(url, () => applyGeneratedTimestamps(items, itemTimes, statusEl));
+  }
+
+  $('azureLoadBtn').addEventListener('click', async () => {
+    const apiKey = $('azureKey').value.trim();
+    const region = $('azureRegion').value.trim();
+    if (!apiKey || !region){ alert('Pega tu API key y región de Azure primero.'); return; }
+    $('azureLoadBtn').disabled = true;
+    $('azureLoadBtn').textContent = 'Cargando…';
+    try {
+      const res = await fetch(`https://${region}.tts.speech.microsoft.com/cognitiveservices/voices/list`, {
+        headers: { 'Ocp-Apim-Subscription-Key': apiKey }
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      AZURE_VOICES = data.map(v => ({ value: v.ShortName, label: `${v.DisplayName || v.ShortName} (${v.Locale})`, locale: v.Locale }));
+      if ($('ttsProvider').value === 'azure') populateProviderVoiceSelect($('charVoice'));
+      renderCharacterList();
+      $('azureLoadBtn').textContent = `Voces cargadas (${AZURE_VOICES.length})`;
+    } catch (err){
+      alert('Error cargando voces de Azure: ' + err.message);
+      $('azureLoadBtn').textContent = 'Cargar voces';
+    }
+    $('azureLoadBtn').disabled = false;
+  });
+
+  // ---------- F5-TTS (Space público de Hugging Face) ----------
+  async function gradioUpload(base, file, token){
+    const form = new FormData();
+    form.append('files', file, file.name);
+    const res = await fetch(`${base}/gradio_api/upload`, {
+      method: 'POST',
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      body: form
+    });
+    if (!res.ok) throw new Error('No se pudo subir el audio de referencia (HTTP ' + res.status + ')');
+    const paths = await res.json();
+    return paths[0];
+  }
+
+  async function gradioCall(base, apiName, data, token){
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const postRes = await fetch(`${base}/gradio_api/call${apiName}`, {
+      method: 'POST', headers, body: JSON.stringify({ data })
+    });
+    if (!postRes.ok) throw new Error('El Space rechazó la petición (HTTP ' + postRes.status + '). Revisa el nombre del endpoint.');
+    const { event_id } = await postRes.json();
+    const streamRes = await fetch(`${base}/gradio_api/call${apiName}/${event_id}`, {
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+    });
+    const reader = streamRes.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '', lastEvent = 'message';
+    while (true){
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+      for (const line of lines){
+        if (line.startsWith('event:')) lastEvent = line.slice(6).trim();
+        else if (line.startsWith('data:')){
+          const payload = line.slice(5).trim();
+          if (!payload) continue;
+          const parsed = JSON.parse(payload);
+          if (lastEvent === 'error') throw new Error('El Space devolvió un error al generar el audio.');
+          if (lastEvent === 'complete') return parsed;
+        }
+      }
+    }
+    throw new Error('El Space no devolvió resultado (se cerró la conexión).');
+  }
+
+  function extractAudioUrlFromGradioResult(base, result){
+    // el primer elemento de salida suele ser el audio; probamos varias formas conocidas de Gradio
+    const first = Array.isArray(result) ? result[0] : result;
+    if (!first) return null;
+    if (typeof first === 'string') return first.startsWith('http') ? first : `${base}/file=${first}`;
+    if (first.url) return first.url;
+    if (first.path) return `${base}/file=${first.path}`;
+    return null;
+  }
+
+  async function generateWithHfF5(items, statusEl){
+    const spaceId = $('hfSpaceId').value.trim();
+    const apiName = $('hfApiName').value.trim() || '/basic_tts';
+    const token = $('hfToken').value.trim();
+    if (!spaceId){ alert('Escribe el Space de Hugging Face (usuario/nombre).'); $('generateTtsBtn').disabled = false; return; }
+    const missingRef = items.filter(it => it.type === 'speech').map(it => state.characters.find(c => c.id === it.speaker))
+      .find(c => c && !c.f5RefFile);
+    if (missingRef){ alert(`Falta el audio de referencia de "${missingRef.name}" (en Personajes).`); $('generateTtsBtn').disabled = false; return; }
+
+    const base = `https://${spaceId.replace('/', '-').toLowerCase()}.hf.space`;
+    const chunks = [];
+    try {
+      const speechItems = items.filter(it => it.type === 'speech');
+      let doneCount = 0;
+      for (const item of items){
+        if (item.type === 'sfx'){
+          const rate = chunks.length ? chunks[chunks.length - 1].sampleRate : 24000;
+          const dur = sfxSilenceDuration(state.words[item.wordStart].text);
+          chunks.push({ pcm: new Int16Array(Math.round(dur * rate)), sampleRate: rate, item });
+          continue;
+        }
+        const character = state.characters.find(c => c.id === item.speaker);
+        doneCount++;
+        statusEl.textContent = `Generando línea ${doneCount}/${speechItems.length} — ${character ? character.name : item.speaker} (F5-TTS, puede tardar)…`;
+        const uploadedPath = await gradioUpload(base, character.f5RefFile, token);
+        const fileData = { path: uploadedPath, orig_name: character.f5RefFile.name, meta: { _type: 'gradio.FileData' } };
+        const result = await gradioCall(base, apiName, [fileData, character.f5RefText || '', item.text, true, 0.15, 1], token);
+        const audioUrl = extractAudioUrlFromGradioResult(base, result);
+        if (!audioUrl) throw new Error('No se encontró el audio en la respuesta del Space — puede que el orden de salidas sea distinto.');
+        const audioRes = await fetch(audioUrl, token ? { headers: { 'Authorization': `Bearer ${token}` } } : undefined);
+        if (!audioRes.ok) throw new Error('No se pudo descargar el audio generado (HTTP ' + audioRes.status + ')');
+        const arrayBuf = await audioRes.arrayBuffer();
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const audioBuffer = await audioCtx.decodeAudioData(arrayBuf);
+        const channelData = audioBuffer.getChannelData(0);
+        const pcm = new Int16Array(channelData.length);
+        for (let i = 0; i < channelData.length; i++){
+          const s = Math.max(-1, Math.min(1, channelData[i]));
+          pcm[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+        }
+        audioCtx.close();
+        chunks.push({ pcm, sampleRate: audioBuffer.sampleRate, item });
+      }
+    } catch (err){
+      alert('Error generando narración con F5-TTS: ' + err.message + '\n\nEs un Space comunitario gratuito — puede estar caído, lento o haber cambiado su API. Revisa la pestaña "Use via API" del Space para confirmar el endpoint.');
+      statusEl.textContent = 'Ocurrió un error con el Space de F5-TTS.';
+      $('generateTtsBtn').disabled = false;
+      return;
+    }
+
+    const sampleRate = (chunks.find(c => c.item.type === 'speech') || chunks[0]).sampleRate;
+    chunks.forEach(c => {
+      if (c.item.type === 'sfx' && c.sampleRate !== sampleRate){
+        const dur = c.pcm.length / c.sampleRate;
+        c.pcm = new Int16Array(Math.round(dur * sampleRate));
+        c.sampleRate = sampleRate;
+      }
+    });
+    const totalSamples = chunks.reduce((s,c) => s + c.pcm.length, 0);
+    const combined = new Int16Array(totalSamples);
+    let offset = 0;
+    const itemTimes = [];
+    chunks.forEach(c => {
+      combined.set(c.pcm, offset);
+      const startTime = offset / sampleRate;
+      offset += c.pcm.length;
+      itemTimes.push({ item: c.item, startTime, endTime: offset / sampleRate });
+    });
+
+    const blob = encodeWav(combined, sampleRate);
+    state.audioBlob = blob;
+    state.audioFileName = 'narracion-f5tts.wav';
+    statusEl.textContent = 'Narración generada. Cargando audio…';
+    const url = URL.createObjectURL(blob);
+    loadAudioFromUrl(url, () => applyGeneratedTimestamps(items, itemTimes, statusEl));
+  }
+
+  function speakRunLive(run, voiceName, getElapsed){
+    return new Promise((resolve) => {
+      const utter = new SpeechSynthesisUtterance(run.text);
+      const voice = BROWSER_VOICES.find(v => `${v.name} (${v.lang})` === voiceName);
+      if (voice) utter.voice = voice;
+      let wi = run.wordStart;
+      utter.onboundary = (e) => {
+        if (e.name && e.name !== 'word') return;
+        if (wi <= run.wordEnd){ state.timestamps[wi] = getElapsed(); wi++; }
+      };
+      const finish = () => {
+        // si el navegador no disparó un límite por cada palabra, reparte lo que falte
+        if (wi <= run.wordEnd){
+          const startT = state.timestamps[wi - 1] != null ? state.timestamps[wi - 1] : getElapsed();
+          estimateSegment(state.words, wi, run.wordEnd, startT, getElapsed(), state.timestamps);
+        }
+        resolve();
+      };
+      utter.onend = finish;
+      utter.onerror = finish;
+      speechSynthesis.speak(utter);
+    });
+  }
+
+  async function playSfxItemLive(item, getElapsed){
+    const word = state.words[item.wordStart];
+    state.timestamps[item.wordStart] = getElapsed();
+    const entry = findSfxEntry(word.text);
+    const dur = sfxSilenceDuration(word.text);
+    if (entry && entry.url) new Audio(entry.url).play().catch(() => {});
+    await new Promise(r => setTimeout(r, dur * 1000));
+  }
+
+  async function previewFullNarration(items, statusEl){
+    if (!window.speechSynthesis){ alert('Este navegador no soporta síntesis de voz.'); $('generateTtsBtn').disabled = false; return; }
+    if (!BROWSER_VOICES.length){ alert('Aún no hay voces del navegador cargadas — espera un momento y vuelve a intentar.'); $('generateTtsBtn').disabled = false; return; }
+    speechSynthesis.cancel();
+    state.timestamps = new Array(state.words.length).fill(null);
+    state.blocks = computeBlocks(state.words, state.blockLimit);
+    renderTimeline();
+
+    const t0 = performance.now();
+    const getElapsed = () => (performance.now() - t0) / 1000;
+    let active = true;
+    (function frameLoop(){
+      if (!active) return;
+      draw(getElapsed());
+      requestAnimationFrame(frameLoop);
+    })();
+
+    const speechItems = items.filter(it => it.type === 'speech');
+    let doneCount = 0;
+    for (const item of items){
+      if (item.type === 'sfx'){
+        await playSfxItemLive(item, getElapsed);
+        renderTimeline();
+        continue;
+      }
+      const character = state.characters.find(c => c.id === item.speaker);
+      const voiceName = (character && character.browserVoice) || browserVoiceList()[0];
+      doneCount++;
+      statusEl.textContent = `Escuchando línea ${doneCount}/${speechItems.length} — ${character ? character.name : item.speaker}… (solo reproduce, no graba)`;
+      await speakRunLive(item, voiceName, getElapsed);
+      renderTimeline();
+    }
+    active = false;
+    updateExportAvailability();
+    statusEl.textContent = 'Vista previa terminada — nada quedó grabado. Pulsa "Exportar video" para grabar el video final con esta narración.';
+    $('generateTtsBtn').disabled = false;
+  }
+
+  $('generateTtsBtn').addEventListener('click', () => {
+    if (!state.words.length){ alert('Aplica el guion primero.'); return; }
+    $('generateTtsBtn').disabled = true;
+    const statusEl = $('ttsStatus');
+    const items = buildNarrationItems(state.words);
+    const provider = $('ttsProvider').value;
+    if (provider === 'browser') previewFullNarration(items, statusEl);
+    else if (provider === 'elevenlabs') generateWithElevenLabs(items, statusEl);
+    else if (provider === 'azure') generateWithAzure(items, statusEl);
+    else if (provider === 'hf_f5tts') generateWithHfF5(items, statusEl);
+    else generateWithGemini(items, statusEl);
+  });
+
+  // ---------- script / blocks ----------
+  function parseTimeToken(tok){
+    const parts = tok.split(':').map(Number);
+    if (parts.length === 3) return parts[0]*3600 + parts[1]*60 + parts[2];
+    return parts[0]*60 + parts[1];
+  }
+
+  function parseScriptWithSpeakers(text){
+    const lines = text.split(/\n+/);
+    const words = [];
+    const anchors = [];
+    let currentSpeaker = 'narrador';
+    let pendingAnchorTime = null;
+    const tagRe = /^\s*([^:]{1,30}):\s*(.*)$/;
+    const anchorRe = /\(\s*((?:\d+:)?\d{1,2}:\d{2})\s*\)/g;
+    const sfxRe = /\*([^*]+)\*/g;
+
+    const pushWords = (str) => {
+      let lastIdx = 0, m;
+      sfxRe.lastIndex = 0;
+      const emit = (chunk, sfx) => {
+        chunk.trim().split(/\s+/).filter(Boolean).forEach(w => {
+          if (pendingAnchorTime != null){
+            anchors.push({ wordIndex: words.length, time: pendingAnchorTime });
+            pendingAnchorTime = null;
+          }
+          words.push({ text: w, speaker: currentSpeaker, sfx });
+        });
+      };
+      while ((m = sfxRe.exec(str)) !== null){
+        emit(str.slice(lastIdx, m.index), false);
+        emit(m[1], true);
+        lastIdx = sfxRe.lastIndex;
+      }
+      emit(str.slice(lastIdx), false);
+    };
+
+    lines.forEach(line => {
+      if (!line.trim()) return;
+      const m = line.match(tagRe);
+      let content = line;
+      if (m){
+        const id = slugify(m[1]);
+        if (state.characters.some(c => c.id === id)){
+          currentSpeaker = id;
+          content = m[2];
+        }
+      }
+      let lastIndex = 0, match;
+      anchorRe.lastIndex = 0;
+      while ((match = anchorRe.exec(content)) !== null){
+        pushWords(content.slice(lastIndex, match.index));
+        pendingAnchorTime = parseTimeToken(match[1]);
+        lastIndex = anchorRe.lastIndex;
+      }
+      pushWords(content.slice(lastIndex));
+    });
+    return { words, anchors };
+  }
+
+  function wordWeight(text){
+    let weight = text.length + 1;
+    if (/[.!?…]$/.test(text)) weight += 4;       // pausa larga tras punto/exclamación/interrogación
+    else if (/[,;:]$/.test(text)) weight += 2;    // pausa corta tras coma/punto y coma
+    return weight;
+  }
+
+  function estimateSegment(words, startIdx, endIdx, startTime, endTime, out){
+    if (startIdx > endIdx) return;
+    const seg = words.slice(startIdx, endIdx + 1);
+    const weights = seg.map(w => wordWeight(w.text));
+    const total = weights.reduce((a,b) => a+b, 0) || 1;
+    let cumulative = 0;
+    seg.forEach((w, i) => {
+      out[startIdx + i] = startTime + (cumulative / total) * (endTime - startTime);
+      cumulative += weights[i];
+    });
+  }
+
+  function interpolateFromAnchors(words, anchors, audioDuration){
+    const out = new Array(words.length).fill(null);
+    if (!anchors.length) return out;
+    const sorted = [...anchors].sort((a,b) => a.wordIndex - b.wordIndex);
+
+    // ritmo promedio (peso de palabra por segundo) entre anclas, para extrapolar los extremos
+    let paceWeight = 0, paceTime = 0;
+    for (let i = 0; i < sorted.length - 1; i++){
+      const a = sorted[i], b = sorted[i+1];
+      paceWeight += words.slice(a.wordIndex, b.wordIndex).reduce((s,w) => s + wordWeight(w.text), 0);
+      paceTime += (b.time - a.time);
+    }
+    const pace = paceTime > 0 ? paceWeight / paceTime : null;
+
+    const first = sorted[0];
+    if (first.wordIndex > 0){
+      const leadWeight = words.slice(0, first.wordIndex).reduce((s,w) => s + wordWeight(w.text), 0);
+      const leadDuration = pace ? leadWeight / pace : first.time;
+      estimateSegment(words, 0, first.wordIndex - 1, Math.max(0, first.time - leadDuration), first.time, out);
+    }
+
+    for (let i = 0; i < sorted.length - 1; i++){
+      const a = sorted[i], b = sorted[i+1];
+      out[a.wordIndex] = a.time;
+      estimateSegment(words, a.wordIndex + 1, b.wordIndex - 1, a.time, b.time, out);
+      out[b.wordIndex] = b.time;
+    }
+    out[first.wordIndex] = first.time;
+
+    const last = sorted[sorted.length - 1];
+    if (last.wordIndex < words.length - 1){
+      const tailWeight = words.slice(last.wordIndex + 1).reduce((s,w) => s + wordWeight(w.text), 0);
+      let endTime;
+      if (audioDuration > 0) endTime = audioDuration;
+      else if (pace) endTime = last.time + tailWeight / pace;
+      else endTime = last.time + tailWeight * 0.08;
+      estimateSegment(words, last.wordIndex + 1, words.length - 1, last.time, endTime, out);
+    }
+    return out;
+  }
+
+  function computeBlocks(words, limit){
+    const blocks = [];
+    let start = 0, len = 0;
+    for (let i = 0; i < words.length; i++){
+      const wLen = words[i].text.length + 1;
+      const speakerChanged = i > start && words[i].speaker !== words[i - 1].speaker;
+      if ((len + wLen > limit || speakerChanged) && i > start){
+        blocks.push({start, end: i - 1});
+        start = i; len = 0;
+      }
+      len += wLen;
+    }
+    if (start <= words.length - 1) blocks.push({start, end: words.length - 1});
+    return blocks;
+  }
+
+  function updateSyncAvailability(){
+    const ready = !!state.audioEl && state.words.length > 0;
+    $('startSyncBtn').disabled = !ready;
+    $('autoSyncBtn').disabled = !ready;
+    $('generateTtsBtn').disabled = !state.words.length;
+  }
+
+  // ---------- múltiples guiones (pestañas) ----------
+  function saveActiveScriptText(){
+    const active = state.scripts.find(s => s.id === state.activeScriptId);
+    if (active) active.text = $('scriptInput').value;
+  }
+
+  function renderScriptTabs(){
+    const el = $('scriptTabs');
+    el.innerHTML = '';
+    state.scripts.forEach(s => {
+      const btn = document.createElement('button');
+      btn.className = 'tab-btn' + (s.id === state.activeScriptId ? ' active' : '');
+      btn.textContent = s.name;
+      btn.title = 'Doble clic para renombrar';
+      btn.addEventListener('click', () => {
+        if (s.id === state.activeScriptId) return;
+        saveActiveScriptText();
+        state.activeScriptId = s.id;
+        $('scriptInput').value = s.text;
+        renderScriptTabs();
+      });
+      btn.addEventListener('dblclick', () => {
+        const name = prompt('Nombre del guion:', s.name);
+        if (name && name.trim()){ s.name = name.trim(); renderScriptTabs(); }
+      });
+      el.appendChild(btn);
+      if (state.scripts.length > 1){
+        const delBtn = document.createElement('button');
+        delBtn.className = 'tab-btn';
+        delBtn.textContent = '✕';
+        delBtn.title = 'Eliminar este guion';
+        delBtn.addEventListener('click', () => {
+          if (!confirm(`¿Eliminar "${s.name}"?`)) return;
+          state.scripts = state.scripts.filter(x => x.id !== s.id);
+          if (state.activeScriptId === s.id){
+            state.activeScriptId = state.scripts[0].id;
+            $('scriptInput').value = state.scripts[0].text;
+          }
+          renderScriptTabs();
+        });
+        el.appendChild(delBtn);
+      }
+    });
+  }
+  renderScriptTabs();
+
+  $('addScriptBtn').addEventListener('click', () => {
+    saveActiveScriptText();
+    const id = 's' + Date.now();
+    const name = `Guion ${state.scripts.length + 1}`;
+    state.scripts.push({ id, name, text: '' });
+    state.activeScriptId = id;
+    $('scriptInput').value = '';
+    renderScriptTabs();
+  });
+
+  $('scriptInput').addEventListener('input', saveActiveScriptText);
+
+  // ---------- subir archivo de guion (.txt / .pdf) ----------
+  let pdfJsLoaded = null;
+  function ensurePdfJs(){
+    if (pdfJsLoaded) return pdfJsLoaded;
+    pdfJsLoaded = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.js';
+      script.onload = () => {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js';
+        resolve(window.pdfjsLib);
+      };
+      script.onerror = () => reject(new Error('No se pudo cargar el lector de PDF.'));
+      document.head.appendChild(script);
+    });
+    return pdfJsLoaded;
+  }
+
+  async function extractPdfText(file){
+    const pdfjsLib = await ensurePdfJs();
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    let text = '';
+    for (let i = 1; i <= pdf.numPages; i++){
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      text += content.items.map(it => it.str).join(' ') + '\n';
+    }
+    return text.trim();
+  }
+
+  $('uploadScriptBtn').addEventListener('click', () => $('scriptFileInput').click());
+  $('scriptFileInput').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if ($('scriptInput').value.trim() && !confirm('Esto va a reemplazar el texto actual del guion. ¿Continuar?')){
+      $('scriptFileInput').value = '';
+      return;
+    }
+    $('uploadScriptBtn').disabled = true;
+    $('uploadScriptBtn').textContent = 'Leyendo…';
+    try {
+      let text;
+      if (/\.pdf$/i.test(file.name) || file.type === 'application/pdf'){
+        text = await extractPdfText(file);
+      } else {
+        text = await file.text();
+      }
+      $('scriptInput').value = text;
+      saveActiveScriptText();
+      extractSpeakerLabels(text).forEach(label => ensureCharacterExists(label));
+      renderCharacterList();
+    } catch (err){
+      alert('No se pudo leer el archivo: ' + err.message);
+    }
+    $('uploadScriptBtn').disabled = false;
+    $('uploadScriptBtn').textContent = 'Subir archivo (.txt / .pdf)';
+    $('scriptFileInput').value = '';
+  });
+
+  // ---------- onomatopeyas ----------
+  function insertAtCursor(textarea, text){
+    const start = textarea.selectionStart ?? textarea.value.length;
+    const end = textarea.selectionEnd ?? textarea.value.length;
+    textarea.value = textarea.value.slice(0, start) + text + textarea.value.slice(end);
+    const pos = start + text.length;
+    textarea.focus();
+    textarea.setSelectionRange(pos, pos);
+    saveActiveScriptText();
+  }
+
+  let sfxDecodeCtx = null;
+  function decodeSfxFile(entry, file){
+    if (!sfxDecodeCtx) sfxDecodeCtx = new (window.AudioContext || window.webkitAudioContext)();
+    entry.file = file;
+    entry.url = URL.createObjectURL(file);
+    file.arrayBuffer()
+      .then(buf => sfxDecodeCtx.decodeAudioData(buf))
+      .then(buffer => { entry.buffer = buffer; })
+      .catch(() => { alert(`No se pudo leer el sonido para "${entry.word}".`); });
+  }
+
+  function findSfxEntry(word){
+    const w = word.trim().toUpperCase();
+    return state.sfxList.find(e => e.word === w);
+  }
+
+  function renderSfxList(){
+    const el = $('sfxList');
+    el.innerHTML = '';
+    state.sfxList.forEach(entry => {
+      const chip = document.createElement('div');
+      chip.className = 'sfx-chip';
+      chip.innerHTML = `<span class="sfx-label">*${entry.word}*${entry.file ? ' 🔊' : ''}</span>`;
+      const insertBtn = document.createElement('button');
+      insertBtn.textContent = 'Insertar';
+      insertBtn.addEventListener('click', () => insertAtCursor($('scriptInput'), `*${entry.word}*`));
+      chip.appendChild(insertBtn);
+
+      const soundBtn = document.createElement('button');
+      soundBtn.textContent = entry.file ? 'Cambiar sonido' : 'Añadir sonido';
+      soundBtn.addEventListener('click', () => {
+        const input = document.createElement('input');
+        input.type = 'file'; input.accept = 'audio/*';
+        input.addEventListener('change', (e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+          decodeSfxFile(entry, file);
+          renderSfxList();
+        });
+        input.click();
+      });
+      chip.appendChild(soundBtn);
+
+      if (entry.url){
+        const playBtn = document.createElement('button');
+        playBtn.textContent = '▶';
+        playBtn.title = 'Escuchar este sonido';
+        playBtn.addEventListener('click', () => new Audio(entry.url).play());
+        chip.appendChild(playBtn);
+      }
+
+      const delBtn = document.createElement('button');
+      delBtn.textContent = '✕';
+      delBtn.addEventListener('click', () => {
+        state.sfxList = state.sfxList.filter(e => e !== entry);
+        renderSfxList();
+      });
+      chip.appendChild(delBtn);
+      el.appendChild(chip);
+    });
+  }
+  renderSfxList();
+
+  $('sfxAddBtn').addEventListener('click', () => {
+    const val = $('sfxNewInput').value.trim().toUpperCase();
+    if (!val) return;
+    if (!state.sfxList.some(e => e.word === val)) state.sfxList.push({ word: val, file:null, url:null, buffer:null });
+    $('sfxNewInput').value = '';
+    renderSfxList();
+  });
+  $('sfxNewInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') $('sfxAddBtn').click();
+  });
+
+  $('applyScriptBtn').addEventListener('click', () => {
+    const { words, anchors } = parseScriptWithSpeakers($('scriptInput').value);
+    if (!words.length){ alert('Escribe o pega el guion primero.'); return; }
+    state.words = words;
+    state.anchors = anchors;
+    state.timestamps = anchors.length
+      ? interpolateFromAnchors(words, anchors, state.audioDuration)
+      : new Array(words.length).fill(null);
+    state.blocks = computeBlocks(words, state.blockLimit);
+    $('wordCountHint').textContent = anchors.length
+      ? `${words.length} palabras · ${state.blocks.length} bloques · ${anchors.length} marcas de tiempo detectadas y aplicadas`
+      : `${words.length} palabras · ${state.blocks.length} bloques de subtítulo`;
+    renderTimeline();
+    updateExportAvailability();
+    updateSyncAvailability();
+  });
+
+  $('clearSyncBtn').addEventListener('click', () => {
+    if (!state.words.length) return;
+    state.timestamps = new Array(state.words.length).fill(null);
+    renderTimeline();
+    updateExportAvailability();
+  });
+
+  $('blockLimit').addEventListener('input', (e) => {
+    state.blockLimit = parseInt(e.target.value, 10);
+    $('blockLimitVal').textContent = `${state.blockLimit} caracteres — controla cuánto texto se agrupa antes de reiniciar el subtítulo`;
+    if (state.words.length){
+      state.blocks = computeBlocks(state.words, state.blockLimit);
+      renderTimeline();
+    }
+  });
+
+  function renderTimeline(){
+    const el = $('timeline');
+    el.innerHTML = '';
+    if (!state.words.length){
+      el.innerHTML = '<div class="empty-hint">Aplica un guion para ver aquí cada palabra y su marca de tiempo.</div>';
+      return;
+    }
+    state.words.forEach((w, i) => {
+      const chip = document.createElement('div');
+      const t = state.timestamps[i];
+      const speaker = state.characters.find(c => c.id === w.speaker);
+      chip.className = 'chip' + (t != null ? ' synced' : '');
+      if (speaker) chip.style.borderLeft = `3px solid ${speaker.color}`;
+      chip.innerHTML = `<span>${w.text}</span><span class="t">${t != null ? t.toFixed(2)+'s' : '—'}</span>`;
+      chip.title = `${speaker ? speaker.name : ''} — clic para editar el tiempo manualmente`;
+      chip.addEventListener('click', () => {
+        const cur = state.timestamps[i];
+        const input = prompt(`Tiempo (segundos) para "${w.text}"`, cur != null ? cur.toFixed(2) : '');
+        if (input === null) return;
+        const val = parseFloat(input);
+        if (isNaN(val)) return;
+        state.timestamps[i] = val;
+        renderTimeline();
+        updateExportAvailability();
+      });
+      el.appendChild(chip);
+    });
+  }
+
+  function updateExportAvailability(){
+    const hasAudio = !!state.audioEl && state.audioDuration > 0;
+    const hasAnyTiming = state.timestamps.some(t => t != null);
+    const browserLiveReady = $('ttsProvider').value === 'browser' && !state.audioEl && state.words.length > 0;
+    $('exportBtn').disabled = !((hasAudio && hasAnyTiming) || browserLiveReady);
+  }
+
+  // ---------- automatic sync (estimated) ----------
+  $('autoSyncBtn').addEventListener('click', () => {
+    if (!state.audioEl || !state.words.length) return;
+    if (state.anchors.length && !confirm('Ya hay marcas de tiempo detectadas en el guion. ¿Sobrescribir con una estimación pareja para todo el audio?')) return;
+    const out = new Array(state.words.length).fill(null);
+    estimateSegment(state.words, 0, state.words.length - 1, 0, state.audioDuration, out);
+    state.timestamps = out;
+    renderTimeline();
+    updateExportAvailability();
+    draw(currentPreviewTime());
+  });
+
+  // ---------- manual tap-to-sync ----------
+  $('startSyncBtn').addEventListener('click', () => {
+    if (!state.audioEl || !state.words.length) return;
+    state.isSyncing = true;
+    state.syncPointer = 0;
+    state.timestamps = new Array(state.words.length).fill(null);
+    $('syncOverlay').classList.remove('hidden');
+    state.audioEl.currentTime = 0;
+    state.audioEl.play();
+    updatePrompter();
+    document.addEventListener('keydown', syncKeyHandler);
+  });
+
+  function syncKeyHandler(e){
+    if (!state.isSyncing) return;
+    if (e.code === 'Space'){ e.preventDefault(); tapWord(); }
+    if (e.code === 'ArrowLeft'){ e.preventDefault(); undoTap(); }
+  }
+
+  function tapWord(){
+    if (state.syncPointer >= state.words.length){ finishSync(); return; }
+    state.timestamps[state.syncPointer] = state.audioEl.currentTime;
+    state.syncPointer++;
+    updatePrompter();
+    renderTimeline();
+    if (state.syncPointer >= state.words.length) finishSync();
+  }
+
+  function undoTap(){
+    if (state.syncPointer === 0) return;
+    state.syncPointer--;
+    state.timestamps[state.syncPointer] = null;
+    updatePrompter();
+    renderTimeline();
+  }
+
+  function updatePrompter(){
+    const p = $('prompter');
+    const done = state.words.slice(Math.max(0, state.syncPointer - 4), state.syncPointer).map(w => w.text).join(' ');
+    const now = state.words[state.syncPointer] ? state.words[state.syncPointer].text : '';
+    const next = state.words.slice(state.syncPointer + 1, state.syncPointer + 5).map(w => w.text).join(' ');
+    p.innerHTML = `<span class="done">${done}</span> <span class="now">${now}</span> <span class="next">${next}</span>`;
+    $('syncProgress').textContent = `${state.syncPointer} / ${state.words.length} palabras`;
+  }
+
+  $('tapBtn').addEventListener('click', tapWord);
+  $('undoTapBtn').addEventListener('click', undoTap);
+  $('finishSyncBtn').addEventListener('click', finishSync);
+
+  function finishSync(){
+    state.isSyncing = false;
+    state.audioEl.pause();
+    document.removeEventListener('keydown', syncKeyHandler);
+    $('syncOverlay').classList.add('hidden');
+    updateExportAvailability();
+  }
+
+  // ---------- playback / scrubber ----------
+  $('playBtn').addEventListener('click', () => {
+    if (!state.audioEl) return;
+    if (state.audioEl.paused){
+      markSfxPlayedUpTo(state.audioEl.currentTime);
+      state.audioEl.play();
+      $('playBtn').textContent = '❚❚';
+      previewLoop();
+    } else {
+      state.audioEl.pause();
+      $('playBtn').textContent = '▶';
+      cancelAnimationFrame(state.rafId);
+    }
+  });
+
+  $('scrubber').addEventListener('input', (e) => {
+    if (!state.audioEl) return;
+    state.audioEl.currentTime = parseFloat(e.target.value);
+    markSfxPlayedUpTo(state.audioEl.currentTime);
+    draw(state.audioEl.currentTime);
+  });
+
+  function skipToBlock(direction){
+    if (!state.audioEl || !state.blocks.length) return;
+    const t = state.audioEl.currentTime;
+    const wordIdx = findCurrentWordIndex(t);
+    let blockIdx = state.blocks.findIndex(b => wordIdx >= b.start && wordIdx <= b.end);
+    if (blockIdx === -1) blockIdx = direction > 0 ? -1 : state.blocks.length;
+    const targetIdx = Math.max(0, Math.min(state.blocks.length - 1, blockIdx + direction));
+    const block = state.blocks[targetIdx];
+    const targetTime = block ? state.timestamps[block.start] : null;
+    if (targetTime == null) return;
+    state.audioEl.currentTime = targetTime;
+    markSfxPlayedUpTo(targetTime);
+    $('scrubber').value = targetTime;
+    $('curTime').textContent = fmtTime(targetTime);
+    draw(targetTime);
+  }
+  $('skipPrevBtn').addEventListener('click', () => skipToBlock(-1));
+  $('skipNextBtn').addEventListener('click', () => skipToBlock(1));
+
+  function markSfxPlayedUpTo(t){
+    state.previewPlayedSfx = new Set(
+      state.words.map((w, i) => i).filter(i => state.words[i].sfx && state.timestamps[i] != null && state.timestamps[i] <= t)
+    );
+  }
+
+  function previewLoop(){
+    if (!state.audioEl || state.audioEl.paused) return;
+    const t = state.audioEl.currentTime;
+    $('scrubber').value = t;
+    $('curTime').textContent = fmtTime(t);
+    draw(t);
+    triggerDueSfxSounds(t, state.previewPlayedSfx);
+    state.rafId = requestAnimationFrame(previewLoop);
+  }
+
+  function currentPreviewTime(){ return state.audioEl ? state.audioEl.currentTime : 0; }
+
+  // ---------- rendering ----------
+  function findCurrentWordIndex(t){
+    let idx = -1;
+    for (let i = 0; i < state.timestamps.length; i++){
+      if (state.timestamps[i] != null && state.timestamps[i] <= t) idx = i;
+    }
+    return idx;
+  }
+
+  function findBlockForWord(i){
+    return state.blocks.find(b => i >= b.start && i <= b.end) || null;
+  }
+
+  function wrapWords(words, maxWidth, font){
+    ctx.font = font;
+    const spaceW = ctx.measureText(' ').width;
+    const lines = [[]];
+    let curW = 0;
+    words.forEach(w => {
+      const label = w.sfx ? `*${w.text.toUpperCase()}*` : w.text;
+      const ww = ctx.measureText(label).width;
+      if (curW + ww > maxWidth && lines[lines.length - 1].length){
+        lines.push([]); curW = 0;
+      }
+      lines[lines.length - 1].push({ ...w, label });
+      curW += ww + spaceW;
+    });
+    return lines;
+  }
+
+  function draw(t){
+    const W = canvas.width, H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+
+    // background
+    const currentBg = findCurrentBackground(t);
+    if (currentBg){
+      const img = currentBg.img;
+      const { w: iw, h: ih } = mediaSize(img);
+      const scale = Math.max(W / iw, H / ih);
+      const dw = iw * scale, dh = ih * scale;
+      ctx.drawImage(img, (W - dw)/2, (H - dh)/2, dw, dh);
+    } else {
+      ctx.fillStyle = '#0a0d10';
+      ctx.fillRect(0,0,W,H);
+    }
+
+    // caption
+    const wordIdx = findCurrentWordIndex(t);
+    const marginX = W * 0.08;
+    const boxMaxWidth = W - marginX * 2;
+    const avatarSize = W * 0.135;
+    const boxBottom = H - H * 0.055;
+
+    let captionLines = [];
+    if (wordIdx >= 0){
+      const block = findBlockForWord(wordIdx);
+      if (block){
+        const revealed = state.words.slice(block.start, wordIdx + 1);
+        captionLines = wrapWords(revealed, boxMaxWidth - 40, `600 ${Math.round(H*0.038)}px 'Space Grotesk', sans-serif`);
+        if (captionLines.length > 2) captionLines = captionLines.slice(-2);
+      }
+    }
+
+    const lineHeight = H * 0.052;
+    const boxHeight = captionLines.length ? (captionLines.length * lineHeight + 28) : 0;
+    const boxTop = boxBottom - boxHeight;
+
+    if (captionLines.length){
+      // measure box width = widest line, capped
+      let widest = 0;
+      captionLines.forEach(line => {
+        ctx.font = `600 ${Math.round(H*0.038)}px 'Space Grotesk', sans-serif`;
+        const w = line.reduce((acc, word, idx) => acc + ctx.measureText(word.label).width + (idx>0 ? ctx.measureText(' ').width : 0), 0);
+        if (w > widest) widest = w;
+      });
+      const boxWidth = Math.min(boxMaxWidth, widest + 44);
+
+      ctx.fillStyle = 'rgba(0,0,0,0.62)';
+      roundRect(ctx, marginX, boxTop, boxWidth, boxHeight, 6);
+      ctx.fill();
+
+      // words, current one highlighted with the speaker's color; sfx en cursiva y color ámbar
+      let globalCount = 0;
+      const block = findBlockForWord(wordIdx);
+      const revealedCount = wordIdx - block.start; // index of last word within revealed set
+      const blockSpeaker = state.characters.find(c => c.id === state.words[block.start].speaker);
+      const highlightColor = blockSpeaker ? blockSpeaker.color : '#4cd3e8';
+      const fontSize = Math.round(H*0.038);
+      captionLines.forEach((line, li) => {
+        let x = marginX + 20;
+        const y = boxTop + 24 + li * lineHeight + lineHeight * 0.55;
+        line.forEach(word => {
+          const isCurrent = globalCount === revealedCount;
+          ctx.font = `${word.sfx ? 'italic ' : ''}600 ${fontSize}px 'Space Grotesk', sans-serif`;
+          ctx.fillStyle = word.sfx ? (isCurrent ? '#f2b84c' : '#c98f2e') : (isCurrent ? highlightColor : '#f0f3f5');
+          ctx.textBaseline = 'middle';
+          ctx.fillText(word.label, x, y);
+          x += ctx.measureText(word.label).width + ctx.measureText(' ').width;
+          globalCount++;
+        });
+      });
+    }
+
+    // avatar (drawn above the caption box, same left margin) — matches the current speaker
+    if (wordIdx >= 0){
+      const speakerId = state.words[wordIdx] ? state.words[wordIdx].speaker : null;
+      const speaker = state.characters.find(c => c.id === speakerId);
+      if (speaker){
+        const avTop = boxHeight ? boxTop - avatarSize : boxBottom - avatarSize;
+        if (speaker.img){
+          ctx.save();
+          roundRect(ctx, marginX, avTop, avatarSize, avatarSize, 4);
+          ctx.clip();
+          const img = speaker.img;
+          const { w: iw, h: ih } = mediaSize(img);
+          const scale = Math.max(avatarSize / iw, avatarSize / ih);
+          const dw = iw * scale, dh = ih * scale;
+          ctx.drawImage(img, marginX + (avatarSize - dw)/2, avTop + (avatarSize - dh)/2, dw, dh);
+          ctx.restore();
+        } else {
+          // fallback: colored box with initials if no avatar was uploaded
+          roundRect(ctx, marginX, avTop, avatarSize, avatarSize, 4);
+          ctx.fillStyle = speaker.color;
+          ctx.fill();
+          ctx.fillStyle = '#04262c';
+          ctx.font = `700 ${Math.round(avatarSize*0.32)}px 'Space Grotesk', sans-serif`;
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText(speaker.name.slice(0,2).toUpperCase(), marginX + avatarSize/2, avTop + avatarSize/2);
+          ctx.textAlign = 'left';
+        }
+      }
+    }
+  }
+
+  function roundRect(ctx, x, y, w, h, r){
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  // initial blank frame
+  draw(0);
+
+  // ---------- export ----------
+  function scheduleSfxSounds(audioCtx, dest, alsoToSpeakers){
+    state.words.forEach((w, idx) => {
+      if (!w.sfx) return;
+      const t = state.timestamps[idx];
+      if (t == null) return;
+      const entry = findSfxEntry(w.text);
+      if (!entry || !entry.buffer) return;
+      const src = audioCtx.createBufferSource();
+      src.buffer = entry.buffer;
+      src.connect(dest);
+      if (alsoToSpeakers) src.connect(audioCtx.destination);
+      src.start(audioCtx.currentTime + Math.max(0, t));
+    });
+  }
+
+  function exportWithAudioFile(){
+    const audio = state.audioEl;
+    audio.pause();
+    audio.currentTime = 0;
+
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const source = audioCtx.createMediaElementSource(audio);
+    const dest = audioCtx.createMediaStreamDestination();
+    source.connect(dest);
+    if ($('hearOnExport').checked) source.connect(audioCtx.destination);
+
+    const fps = parseInt($('exportFps').value, 10) || 30;
+    const canvasStream = canvas.captureStream(fps);
+    const combined = new MediaStream([
+      ...canvasStream.getVideoTracks(),
+      ...dest.stream.getAudioTracks()
+    ]);
+
+    const mimeCandidates = ['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'];
+    const mimeType = mimeCandidates.find(m => MediaRecorder.isTypeSupported(m)) || '';
+    const recorder = new MediaRecorder(combined, mimeType ? { mimeType } : undefined);
+    const chunks = [];
+    recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+
+    const finishExport = () => {
+      finalizeExport(chunks, mimeType);
+      audioCtx.close();
+    };
+    recorder.onstop = finishExport;
+    state.cancelExportFn = () => { audio.pause(); recorder.stop(); };
+
+    function exportLoop(){
+      if (state.isExportCancelled) return;
+      if (audio.ended || audio.paused && audio.currentTime >= state.audioDuration - 0.05){
+        recorder.stop();
+        return;
+      }
+      draw(audio.currentTime);
+      const pct = Math.min(100, (audio.currentTime / state.audioDuration) * 100);
+      $('exportBar').style.width = pct.toFixed(1) + '%';
+      $('exportLabel').textContent = `Exportando… ${audio.currentTime.toFixed(1)}s / ${state.audioDuration.toFixed(1)}s`;
+      requestAnimationFrame(exportLoop);
+    }
+
+    audio.addEventListener('ended', () => recorder.stop(), { once: true });
+    recorder.start();
+    scheduleSfxSounds(audioCtx, dest, $('hearOnExport').checked);
+    audio.play().then(exportLoop);
+  }
+
+  function triggerDueSfxSounds(elapsed, playedSet){
+    state.words.forEach((w, idx) => {
+      if (!w.sfx || playedSet.has(idx)) return;
+      const t = state.timestamps[idx];
+      if (t == null || t > elapsed) return;
+      playedSet.add(idx);
+      const entry = findSfxEntry(w.text);
+      if (entry && entry.url) new Audio(entry.url).play().catch(() => {});
+    });
+  }
+
+  async function exportWithLiveBrowserVoices(){
+    if (!window.speechSynthesis || !BROWSER_VOICES.length){
+      alert('No hay voces del navegador disponibles.');
+      resetExportUi();
+      return;
+    }
+    speechSynthesis.cancel();
+    let displayStream;
+    try {
+      $('exportLabel').textContent = 'Elige "Esta pestaña" y marca "Compartir audio de la pestaña"…';
+      displayStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+    } catch (err){
+      $('exportStatus').classList.remove('show');
+      resetExportUi();
+      return;
+    }
+    if (state.isExportCancelled){ displayStream.getTracks().forEach(t => t.stop()); resetExportUi(); return; }
+    const audioTrack = displayStream.getAudioTracks()[0];
+    displayStream.getVideoTracks().forEach(t => t.stop());
+    if (!audioTrack){
+      alert('No se detectó audio de la pestaña — asegúrate de marcar "Compartir audio de la pestaña".');
+      displayStream.getTracks().forEach(t => t.stop());
+      resetExportUi();
+      return;
+    }
+
+    const fps = parseInt($('exportFps').value, 10) || 30;
+    const canvasStream = canvas.captureStream(fps);
+    const combined = new MediaStream([...canvasStream.getVideoTracks(), audioTrack]);
+    const mimeCandidates = ['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'];
+    const mimeType = mimeCandidates.find(m => MediaRecorder.isTypeSupported(m)) || '';
+    const recorder = new MediaRecorder(combined, mimeType ? { mimeType } : undefined);
+    const chunks = [];
+    recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+    recorder.onstop = () => {
+      audioTrack.stop();
+      displayStream.getTracks().forEach(t => t.stop());
+      finalizeExport(chunks, mimeType);
+    };
+    state.cancelExportFn = () => { speechSynthesis.cancel(); recorder.stop(); };
+
+    const items = buildNarrationItems(state.words);
+    state.timestamps = new Array(state.words.length).fill(null);
+    state.blocks = computeBlocks(state.words, state.blockLimit);
+
+    recorder.start();
+    const t0 = performance.now();
+    const getExportElapsed = () => (performance.now() - t0) / 1000;
+    let active = true;
+    (function frameLoop(){
+      if (!active) return;
+      draw(getExportElapsed());
+      requestAnimationFrame(frameLoop);
+    })();
+
+    const speechItems = items.filter(it => it.type === 'speech');
+    let doneCount = 0;
+    for (const item of items){
+      if (state.isExportCancelled) break;
+      if (item.type === 'sfx'){
+        await playSfxItemLive(item, getExportElapsed);
+        continue;
+      }
+      const character = state.characters.find(c => c.id === item.speaker);
+      const voiceName = (character && character.browserVoice) || browserVoiceList()[0];
+      doneCount++;
+      $('exportLabel').textContent = `Grabando línea ${doneCount}/${speechItems.length} — ${character ? character.name : item.speaker}…`;
+      await speakRunLive(item, voiceName, getExportElapsed);
+    }
+    if (!state.isExportCancelled) await new Promise(r => setTimeout(r, 300));
+    active = false;
+    renderTimeline();
+    if (recorder.state !== 'inactive') recorder.stop();
+  }
+
+  function finalizeExport(chunks, mimeType){
+    if (state.isExportCancelled){
+      $('exportLabel').textContent = 'Exportación cancelada.';
+      $('exportBar').style.width = '0%';
+      setTimeout(() => $('exportStatus').classList.remove('show'), 1800);
+      resetExportUi();
+      return;
+    }
+    const blob = new Blob(chunks, { type: mimeType || 'video/webm' });
+    const url = URL.createObjectURL(blob);
+    const stamp = new Date();
+    const name = `narracion-${stamp.toISOString().slice(0,19).replace(/[:T]/g,'-')}.webm`;
+    const a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    $('exportLabel').textContent = `Video exportado (${name})`;
+    $('exportBar').style.width = '100%';
+    setTimeout(() => $('exportStatus').classList.remove('show'), 2500);
+    addToExportHistory({ id: 'exp' + Date.now(), name, url, blob, time: stamp });
+    resetExportUi();
+  }
+
+  function addToExportHistory(entry){
+    state.exportHistory.unshift(entry);
+    renderExportHistory();
+  }
+
+  function renderExportHistory(){
+    const el = $('exportHistoryList');
+    el.innerHTML = '';
+    if (!state.exportHistory.length){
+      el.innerHTML = '<div class="empty-hint">Todavía no exportaste ningún video en esta sesión.</div>';
+      return;
+    }
+    state.exportHistory.forEach(entry => {
+      const row = document.createElement('div');
+      row.className = 'char-chip';
+      const info = document.createElement('span');
+      info.className = 'cname';
+      info.textContent = `${entry.name} — ${entry.time.toLocaleTimeString()}`;
+      row.appendChild(info);
+      const dlBtn = document.createElement('button');
+      dlBtn.textContent = 'Descargar de nuevo';
+      dlBtn.addEventListener('click', () => {
+        const a = document.createElement('a');
+        a.href = entry.url; a.download = entry.name;
+        document.body.appendChild(a); a.click(); a.remove();
+      });
+      row.appendChild(dlBtn);
+      const delBtn = document.createElement('button');
+      delBtn.textContent = '✕';
+      delBtn.addEventListener('click', () => {
+        URL.revokeObjectURL(entry.url);
+        state.exportHistory = state.exportHistory.filter(e => e.id !== entry.id);
+        renderExportHistory();
+      });
+      row.appendChild(delBtn);
+      el.appendChild(row);
+    });
+  }
+
+  function resetExportUi(){
+    state.isExporting = false;
+    state.isExportCancelled = false;
+    state.cancelExportFn = null;
+    $('exportBtn').disabled = false;
+    updateExportAvailability();
+  }
+
+  $('cancelExportBtn').addEventListener('click', () => {
+    if (!state.isExporting) return;
+    state.isExportCancelled = true;
+    $('exportLabel').textContent = 'Cancelando…';
+    if (state.cancelExportFn) state.cancelExportFn();
+  });
+
+  $('exportBtn').addEventListener('click', async () => {
+    if (state.isExporting) return;
+    const liveBrowser = $('ttsProvider').value === 'browser' && !state.audioEl;
+    if (!liveBrowser && !state.audioEl) return;
+
+    state.isExporting = true;
+    state.isExportCancelled = false;
+    $('exportBtn').disabled = true;
+    $('exportStatus').classList.add('show');
+    $('exportLabel').textContent = 'Preparando exportación…';
+    $('exportBar').style.width = '0%';
+
+    if (liveBrowser) exportWithLiveBrowserVoices();
+    else exportWithAudioFile();
+  });
+
+})();
+</script>
+</body>
+</html>
