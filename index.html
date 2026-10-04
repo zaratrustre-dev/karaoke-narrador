@@ -224,7 +224,7 @@
             <input type="file" id="bgInput" accept="image/*,video/*" multiple style="display:none">
           </div>
         </div>
-        <div class="hint">Puedes seleccionar varias imágenes/videos a la vez: se añaden en orden, separados 3 segundos entre sí (ajustable después con "Editar tiempo"). Cada fondo dura hasta que empieza el siguiente. Admite imágenes, GIF animados o video corto (se reproduce en bucle y mudo).</div>
+        <div class="hint">Puedes seleccionar varias imágenes/videos a la vez: se añaden en orden, separados 3 segundos entre sí (ajustable después con "Editar tiempo"). Cada fondo dura hasta que empieza el siguiente. Admite imágenes, GIF animados o video corto (se reproduce en bucle y mudo). Para asociar un fondo a una parte del texto, usa el botón <b>Cambiar fondo aquí</b> en la sección Guion.</div>
       </div>
 
       <div class="field">
@@ -313,6 +313,11 @@
           <button id="uploadScriptBtn">Subir archivo (.txt / .pdf)</button>
           <input type="file" id="scriptFileInput" accept=".txt,.md,.pdf,text/plain,application/pdf" style="display:none">
         </div>
+        <div class="row">
+          <select id="bgInsertSelect" title="Fondo que se mostrará desde esa palabra"></select>
+          <button id="bgInsertBtn" title="Pone la etiqueta [fondo: nombre] donde tengas el cursor en el guion">Cambiar fondo aquí</button>
+        </div>
+        <div class="hint">Coloca el cursor en el guion justo antes de la palabra donde debe cambiar la escena, elige el fondo y pulsa <b>Cambiar fondo aquí</b>. Así el fondo queda asociado a esa parte del texto y la sigue aunque cambie la narración.</div>
         <div class="hint">Empieza una línea con "Nombre: texto" para marcar quién habla. Si pegas texto con marcas de tiempo como <b>(0:15)</b> —por ejemplo de TurboScribe, Audacity o la transcripción con IA— se detectan solas y se usan como puntos de control exactos; el resto de las palabras entre marcas se calcula automáticamente. Para cambiar de fondo en un punto de la historia escribe <b>[fondo: nombre]</b> antes de esa palabra (el nombre se ve en la lista de fondos y se cambia con "Nombre"); el fondo cambiará cuando se narre esa palabra aunque regeneres el audio.</div>
 
         <label style="margin-top:10px; display:block;">Onomatopeyas</label>
@@ -655,7 +660,29 @@
     draw(currentPreviewTime());
   }
 
+  function refreshBgInsertSelect(){
+    const sel = $('bgInsertSelect'), btn = $('bgInsertBtn');
+    if (!sel) return;
+    const prev = sel.value;
+    sel.innerHTML = '';
+    if (!state.backgrounds.length){
+      const o = document.createElement('option');
+      o.textContent = 'Sube un fondo primero';
+      sel.appendChild(o);
+      sel.disabled = true; btn.disabled = true;
+      return;
+    }
+    state.backgrounds.forEach(b => {
+      const o = document.createElement('option');
+      o.value = bgTag(b); o.textContent = bgTag(b);
+      sel.appendChild(o);
+    });
+    if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
+    sel.disabled = false; btn.disabled = false;
+  }
+
   function renderBgList(){
+    refreshBgInsertSelect();
     const el = $('bgList');
     el.innerHTML = '';
     if (!state.backgrounds.length){
@@ -677,7 +704,9 @@
       const timeSpan = document.createElement('span');
       timeSpan.className = 'cname';
       const usedByCue = state.bgCues.some(c => slugify(c.name) === bgTag(b));
-      timeSpan.textContent = bgTag(b) + (usedByCue ? ' · por guion' : ' · ' + b.time.toFixed(1) + 's');
+      const cue = state.bgCues.find(c => slugify(c.name) === bgTag(b));
+      const cueText = cue ? state.words.slice(cue.wordIndex, cue.wordIndex + 5).map(w => w.text).join(' ') : '';
+      timeSpan.textContent = bgTag(b) + (usedByCue ? ' · desde «' + cueText + '…»' : ' · ' + b.time.toFixed(1) + 's');
       row.appendChild(mediaEl);
       row.appendChild(timeSpan);
       const timeBtn = document.createElement('button');
@@ -992,6 +1021,7 @@
     state.words = words;
     state.anchors = anchors;
     state.bgCues = bgCues;
+    renderBgList();
     state.timestamps = anchors.length
       ? interpolateFromAnchors(words, anchors, state.audioDuration)
       : new Array(words.length).fill(null);
@@ -2020,6 +2050,13 @@
     textarea.setSelectionRange(pos, pos);
     saveActiveScriptText();
   }
+
+  $('bgInsertBtn').addEventListener('click', () => {
+    const tag = $('bgInsertSelect').value;
+    if (!tag) return;
+    insertAtCursor($('scriptInput'), `[fondo: ${tag}] `);
+  });
+  refreshBgInsertSelect();
 
   let sfxDecodeCtx = null;
   function decodeSfxFile(entry, file){
